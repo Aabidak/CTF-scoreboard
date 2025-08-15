@@ -13,7 +13,7 @@
     background:#000; color:#0ff; overflow-x:hidden;
   }
 
-  /* Blinking star background using canvas */
+  /* Stars background */
   canvas#stars { 
     position:fixed; 
     top:0; left:0; width:100%; height:100%; 
@@ -21,33 +21,31 @@
     background:#000;
   }
 
-  /* Creator neon light top-left */
+  /* Creator neon top-left, bulb flicker */
   #creator {
     position:absolute; top:10px; left:10px;
-    font-size:20px; font-weight:bold;
+    font-size:22px; font-weight:bold;
     color:#fff;
     text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #fff;
   }
 
-  @keyframes flicker {
-    0%,100% { opacity: 1; }
-    10% { opacity: 0.2; }
-    20% { opacity: 0.8; }
-    30% { opacity: 0.2; }
-    40% { opacity: 0.9; }
-    50% { opacity: 0.3; }
-    60% { opacity: 1; }
-    70% { opacity: 0.2; }
-    80% { opacity: 0.8; }
-    90% { opacity: 0.2; }
+  /* Neon fade for main headers */
+  .neon {
+    color:#ff69b4;
+    text-shadow: 0 0 5px #ff69b4, 0 0 10px #ff69b4, 0 0 20px #ff69b4, 0 0 30px #ff69b4;
+    animation: neonFade 3s infinite alternate;
   }
 
-  /* Headers */
-  h1,h2,h3 { text-align:center; color:#ff69b4; } 
+  @keyframes neonFade {
+    0% { text-shadow: 0 0 2px #ff69b4,0 0 5px #ff69b4,0 0 10px #ff69b4,0 0 20px #ff69b4; }
+    100% { text-shadow: 0 0 20px #ff69b4,0 0 40px #ff69b4,0 0 60px #ff69b4,0 0 80px #ff69b4; }
+  }
+
+  /* Headers & inputs */
+  h1,h2,h3 { text-align:center; } 
   h2 { font-size:1.5em; } 
   h3 { font-size:1.2em; }
 
-  /* Inputs & Buttons */
   input, button { 
     font-size:18px; margin:10px; padding:10px; border:1px solid #0ff; 
     background:#111; color:#0ff; border-radius:10px; 
@@ -148,20 +146,21 @@ async function loadScores(newChallenge=null){
   });
 }
 
-// Creator flicker: stays off 2s, then flickers quickly
-const creator = document.getElementById('creator');
-function flickerBulb(){
-  creator.style.opacity=0;
-  setTimeout(()=>{
-    let flicks=0;
-    const flickInterval = setInterval(()=>{
-      creator.style.opacity = flicks%2===0?1:0;
-      flicks++;
-      if(flicks>5){ clearInterval(flickInterval); setTimeout(flickerBulb,2000); }
-    },100); // fast flicker
-  },2000);
-}
+// Creator flicker: only neon glow flickers, text always visible
 window.onload = function() {
+  const creator = document.getElementById('creator');
+  function flickerBulb(){
+    setTimeout(()=>{
+      let flicks=0;
+      const flickInterval = setInterval(()=>{
+        creator.style.textShadow = flicks%2===0 
+          ? "0 0 5px #fff, 0 0 10px #fff, 0 0 20px #fff" 
+          : "0 0 2px #fff, 0 0 4px #fff, 0 0 6px #fff";
+        flicks++;
+        if(flicks>5){ clearInterval(flickInterval); flickerBulb(); }
+      },100);
+    },2000);
+  }
   flickerBulb();
 
   // Stars canvas
@@ -202,17 +201,17 @@ window.onload = function() {
   <a href="#" onclick="logout()">Logout</a>
 </div>
 
-<h1>🔥 CTF Flag Submission</h1>
-<h3>Welcome: <span id="nickname-display"></span></h3>
+<h1 class="neon">🔥 CTF Flag Submission</h1>
+<h3 class="neon">Welcome: <span id="nickname-display"></span></h3>
 
 <div id="flag-section">
-  <h2>Submit a Flag</h2>
+  <h2 class="neon">Submit a Flag</h2>
   <input id="challenge" placeholder="Challenge Name"><br>
   <input id="flag" placeholder="Flag"><br>
   <button onclick="submitFlag()">Submit</button>
 </div>
 
-<h2>🏆 Live Scoreboard</h2>
+<h2 class="neon">🏆 Live Scoreboard</h2>
 <ul id="scoreboard"></ul>
 </body>
 </html>
