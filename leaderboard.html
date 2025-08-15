@@ -2,43 +2,34 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>CTF Leaderboard</title>
+<title>CTF User Profile</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 html, body {
-  margin:0; padding:0; height:100%;
-  font-family:"Courier New", monospace;
-  background:#000;
-  color:#0ff;
-  overflow:auto;
+    margin:0; padding:0; height:100%;
+    font-family:"Courier New", monospace;
+    color:#0ff;
+    overflow:auto;
+    background:#000;
 }
 #starfield { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
 #cyber-text {
-  position:absolute; top:10px; left:10px; font-size:1.5rem;
-  color:#fff; z-index:2; font-weight:bold; text-shadow:0 0 10px #fff;
+    position:absolute; top:10px; left:10px; font-size:1.5rem;
+    color:#fff; z-index:2; font-weight:bold; text-shadow:0 0 10px #fff;
 }
 #nav { position:absolute; top:10px; right:20px; z-index:2; }
 #nav a { margin-left:20px; color:#f0f; text-decoration:none; font-weight:bold; }
-#content {
-  position:relative; z-index:1; padding:80px 20px 20px; max-width:900px; margin:0 auto;
-}
-h1 { font-size:2.5rem; color:#f0f; text-shadow:0 0 10px #f0f; text-align:center; margin-bottom:20px; }
-#scoreboard {
-  list-style:none; padding:0; margin:0 auto;
-  max-height:75vh; overflow-y:auto; font-size:1.2rem;
-}
-#scoreboard li {
-  padding:10px 15px;
-  border-bottom:1px solid #0ff;
-  background: rgba(0,255,255,0.05);
-  margin-bottom:5px;
-  border-radius:6px;
-}
-#scoreboard li.top { color: gold; font-weight:bold; }
+#stats { position:relative; z-index:1; margin-top:80px; width:min(800px,95vw); }
+table { width:100%; border-collapse:collapse; margin-top:20px; }
+th, td { padding:10px; text-align:left; border-bottom:1px solid #0ff; }
+th { color:gold; font-weight:bold; }
+tr:nth-child(even) { background: rgba(0,255,255,0.05); }
+tr.failed { background: rgba(255,0,0,0.1); }
+h2, p { margin:5px 0; }
 </style>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
 const firebaseConfig={apiKey:"AIzaSyCkblbbA7iZmiGr617-KZB8Yd3H3a2Aq4M",authDomain:"ctfscoreboard-3af1b.firebaseapp.com",projectId:"ctfscoreboard-3af1b"};
@@ -46,26 +37,56 @@ const app=initializeApp(firebaseConfig);
 const db=getFirestore(app);
 const auth=getAuth(app);
 
-onAuthStateChanged(auth, (u)=>{ if(!u || !u.email.endsWith("@player.local")) window.location.href="login.html"; });
+let nickname="", uid="";
+onAuthStateChanged(auth, (u)=>{
+    if(!u || !u.email.endsWith("@player.local")){ window.location.href="login.html"; return; }
+    nickname=u.displayName || (u.email.split("@")[0]);
+    uid=u.uid;
+    loadProfile();
+});
 
-window.logout = async function(){ await signOut(auth); window.location.href="login.html"; }
+window.logout=function(){ signOut(auth).then(()=>window.location.href="login.html"); }
 
-async function loadLeaderboard(){
-  const ul=document.getElementById('scoreboard'); ul.innerHTML='';
-  const snap=await getDocs(query(collection(db,"scores"), orderBy("timestamp","asc")));
-  const scores={};
-  snap.forEach(doc=>{ const d=doc.data(); scores[d.nickname]=(scores[d.nickname]||0)+d.points; });
-  const sorted=Object.entries(scores).sort((a,b)=>b[1]-a[1]);
-  sorted.forEach(([nick,pts],idx)=>{
-    const li=document.createElement('li');
-    li.textContent=`${idx+1}. ${nick} : ${pts} pts`;
-    if(idx===0) li.classList.add('top');
-    ul.appendChild(li);
-  });
+async function loadProfile(){
+    const snap=await getDocs(collection(db,"scores"));
+    let totalPoints=0, maxPoints=0, failedCount=0;
+    const tableRows=[];
+
+    snap.forEach(doc=>{
+        const d=doc.data();
+        if(d.uid===uid){
+            const pts = d.points || 0;
+            const maxPts = d.maxPoints || 100;
+            totalPoints += pts;
+            maxPoints += maxPts;
+            const failPercent = Math.max(0, ((maxPts - pts)/maxPts)*100);
+            if(pts < maxPts) failedCount++;
+            tableRows.push({challenge:d.challenge, points:pts, successPercent:(pts/maxPts*100).toFixed(2), failPercent: failPercent.toFixed(2)});
+        }
+    });
+
+    const overallSuccess = maxPoints===0 ? 0 : ((totalPoints/maxPoints)*100).toFixed(2);
+
+    let html=`<h2>${nickname} Profile</h2>
+              <p>Total Points: ${totalPoints}</p>
+              <p>Overall Success Rate: ${overallSuccess}% | Failed Challenges: ${failedCount}</p>
+              <table>
+              <tr><th>Challenge</th><th>Points</th><th>Success %</th><th>Failed %</th></tr>`;
+    
+    tableRows.forEach(r=>{
+        html+=`<tr ${r.successPercent<100?'class="failed"':''}>
+                 <td>${r.challenge}</td>
+                 <td>${r.points}</td>
+                 <td>${r.successPercent}</td>
+                 <td>${r.failPercent}</td>
+               </tr>`;
+    });
+    html+="</table>";
+    document.getElementById('stats').innerHTML=html;
 }
 
 window.onload = function(){
-    loadLeaderboard();
+    // Starfield canvas
     const canvas = document.createElement('canvas');
     canvas.id='starfield';
     document.body.appendChild(canvas);
@@ -76,12 +97,15 @@ window.onload = function(){
 
     const stars=[];
     for(let i=0;i<400;i++) stars.push({x:Math.random()*width, y:Math.random()*height, r:Math.random()*2+0.5, blinkSpeed: Math.random()*0.05 + 0.02, opacity: Math.random()});
+
     const cyberText = document.createElement('div');
     cyberText.id='cyber-text';
     cyberText.innerText='BY Cyb3rMaF1a';
     document.body.appendChild(cyberText);
+
     function blinkText(){ cyberText.style.opacity = Math.random()>0.5 ? 1 : 0.2; setTimeout(blinkText, 200 + Math.random()*300); }
     blinkText();
+
     function animate(){
         ctx.fillStyle='#000';
         ctx.fillRect(0,0,width,height);
@@ -103,12 +127,9 @@ window.onload = function(){
 <body>
 <div id="nav">
   <a href="index.html">Submit Flag</a>
-  <a href="user.html">Profile</a>
+  <a href="leaderboard.html">Leaderboard</a>
   <a href="#" onclick="logout()">Logout</a>
 </div>
-<div id="content">
-  <h1>🏆 CTF Leaderboard</h1>
-  <ul id="scoreboard"></ul>
-</div>
+<div id="stats"></div>
 </body>
 </html>
