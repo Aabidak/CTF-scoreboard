@@ -6,29 +6,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 html, body {
-  margin:0; padding:0; height:100%;
-  font-family:"Courier New", monospace;
-  overflow:auto;
-  background:#000;
-  color:#0ff;
+    margin:0; padding:0; height:100%;
+    font-family:"Courier New", monospace;
+    color:#0ff;
+    overflow:auto;
+    background:#000;
 }
 #starfield { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
 #cyber-text {
-  position:absolute; top:10px; left:10px; font-size:1.5rem;
-  color:#fff; z-index:2; font-weight:bold; text-shadow:0 0 10px #fff;
+    position:absolute; top:10px; left:10px; font-size:1.5rem;
+    color:#fff; z-index:2; font-weight:bold; text-shadow:0 0 10px #fff;
 }
 #nav { position:absolute; top:10px; right:20px; z-index:2; }
 #nav a { margin-left:20px; color:#f0f; text-decoration:none; font-weight:bold; }
-#content { position:relative; z-index:1; padding:60px 20px 20px; max-width:900px; margin:0 auto; }
-h1,h2 { color:#f0f; text-align:center; }
-.challenge-list { display:flex; flex-direction:column; gap:10px; margin-top:30px; }
-.challenge-item {
-  display:flex; justify-content:space-between; padding:12px 20px; border:1px solid #0ff; border-radius:8px;
-  background:rgba(0,255,255,0.05);
-  font-size:1.1rem;
-}
-.challenge-item span { display:inline-block; }
-#success-rate { margin-top:20px; font-size:1.3rem; font-weight:bold; text-align:center; }
+#stats { position:relative; z-index:1; margin-top:80px; width:min(800px,95vw); }
+table { width:100%; border-collapse:collapse; margin-top:20px; }
+th, td { padding:10px; text-align:left; border-bottom:1px solid #0ff; }
+th { color:gold; font-weight:bold; }
+tr:nth-child(even) { background: rgba(0,255,255,0.05); }
+tr.failed { background: rgba(255,0,0,0.1); }
+h2, p { margin:5px 0; }
 </style>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -42,51 +39,52 @@ const auth=getAuth(app);
 
 let nickname="", uid="";
 onAuthStateChanged(auth, (u)=>{
-  if(!u || !u.email.endsWith("@player.local")){ window.location.href="login.html"; return; }
-  nickname=u.displayName || (u.email.split("@")[0]);
-  uid=u.uid;
-  loadProfile();
+    if(!u || !u.email.endsWith("@player.local")){ window.location.href="login.html"; return; }
+    nickname=u.displayName || (u.email.split("@")[0]);
+    uid=u.uid;
+    loadProfile();
 });
 
 window.logout=function(){ signOut(auth).then(()=>window.location.href="login.html"); }
 
 async function loadProfile(){
     const snap=await getDocs(collection(db,"scores"));
-    let totalAttempts=0, points=0;
-    const completed = [];
+    let totalPoints=0, maxPoints=0, failedCount=0;
+    const tableRows=[];
+
     snap.forEach(doc=>{
         const d=doc.data();
         if(d.uid===uid){
-            totalAttempts++;
-            completed.push({challenge:d.challenge, points:d.points});
-            points+=d.points;
+            const pts = d.points || 0;
+            const maxPts = d.maxPoints || 100;
+            totalPoints += pts;
+            maxPoints += maxPts;
+            const failPercent = Math.max(0, ((maxPts - pts)/maxPts)*100);
+            if(pts < maxPts) failedCount++;
+            tableRows.push({challenge:d.challenge, points:pts, successPercent:(pts/maxPts*100).toFixed(2), failPercent: failPercent.toFixed(2)});
         }
     });
 
-    const maxPointsPerChallenge=100;
-    const successRate = totalAttempts===0 ? 0 : Math.min(100, ((points/(totalAttempts*maxPointsPerChallenge))*100)).toFixed(2);
+    const overallSuccess = maxPoints===0 ? 0 : ((totalPoints/maxPoints)*100).toFixed(2);
 
-    // Build challenge list
-    let html=`<h1>${nickname} Profile</h1>`;
-    if(completed.length===0){
-        html += `<p>No challenges completed yet.</p>`;
-    } else {
-        html += `<div class="challenge-list">`;
-        completed.forEach(c=>{
-            const failed = 1 - c.points/maxPointsPerChallenge;
-            const percentage = ((c.points/maxPointsPerChallenge)*100).toFixed(1);
-            html += `<div class="challenge-item">
-                        <span>${c.challenge}</span>
-                        <span>${c.points}/${maxPointsPerChallenge} pts | ${percentage}% success | Failed: ${Math.round(failed*100)}%</span>
-                     </div>`;
-        });
-        html += `</div>`;
-    }
-    html += `<div id="success-rate">Overall Success Rate: ${successRate}%</div>`;
-    document.getElementById('stats').innerHTML = html;
+    let html=`<h2>${nickname} Profile</h2>
+              <p>Total Points: ${totalPoints}</p>
+              <p>Overall Success Rate: ${overallSuccess}% | Failed Challenges: ${failedCount}</p>
+              <table>
+              <tr><th>Challenge</th><th>Points</th><th>Success %</th><th>Failed %</th></tr>`;
+    
+    tableRows.forEach(r=>{
+        html+=`<tr ${r.successPercent<100?'class="failed"':''}>
+                 <td>${r.challenge}</td>
+                 <td>${r.points}</td>
+                 <td>${r.successPercent}</td>
+                 <td>${r.failPercent}</td>
+               </tr>`;
+    });
+    html+="</table>";
+    document.getElementById('stats').innerHTML=html;
 }
 
-// Stars animation
 window.onload = function(){
     const canvas = document.createElement('canvas');
     canvas.id='starfield';
@@ -98,12 +96,15 @@ window.onload = function(){
 
     const stars=[];
     for(let i=0;i<400;i++) stars.push({x:Math.random()*width, y:Math.random()*height, r:Math.random()*2+0.5, blinkSpeed: Math.random()*0.05 + 0.02, opacity: Math.random()});
+
     const cyberText = document.createElement('div');
     cyberText.id='cyber-text';
     cyberText.innerText='BY Cyb3rMaF1a';
     document.body.appendChild(cyberText);
+
     function blinkText(){ cyberText.style.opacity = Math.random()>0.5 ? 1 : 0.2; setTimeout(blinkText, 200 + Math.random()*300); }
     blinkText();
+
     function animate(){
         ctx.fillStyle='#000';
         ctx.fillRect(0,0,width,height);
@@ -128,8 +129,6 @@ window.onload = function(){
   <a href="leaderboard.html">Leaderboard</a>
   <a href="#" onclick="logout()">Logout</a>
 </div>
-<div id="content">
-  <div id="stats"></div>
-</div>
+<div id="stats"></div>
 </body>
 </html>
