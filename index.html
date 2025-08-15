@@ -8,14 +8,14 @@
   body { 
     margin:0; 
     font-family:"Courier New", monospace; 
-    color:#0ff; 
+    color:#00ffff; 
     display:flex; 
     flex-direction:column; 
     align-items:center; 
     padding:30px; 
     overflow:hidden; 
     position:relative;
-    background:#000;
+    background:#000; 
   }
   canvas { 
     position:absolute; 
@@ -23,33 +23,37 @@
     z-index:-1; 
   }
 
-  /* Top-left blinking string - old house bulb style */
+  /* Top-left blinking string - old house light style */
   #top-string {
     position:absolute;
     top:10px;
     left:10px;
-    font-size:28px;
-    color:#fff8dc; /* warm white/yellowish */
+    font-size:36px; /* increased */
+    color:#ffffff; /* pure white */
     font-weight:bold;
     font-family:"Courier New", monospace;
-    text-shadow:0 0 3px #fff, 0 0 7px #fff, 0 0 10px #fff8dc;
-    animation: houseBlink 1.2s infinite;
+    text-shadow:0 0 5px #fff, 0 0 10px #fff, 0 0 15px #fff;
+    animation: oldHouseBlink 1s infinite;
   }
-  @keyframes houseBlink { 
-    0%,50%,100% { opacity:1; } 
-    25%,75% { opacity:0.2; } 
+  @keyframes oldHouseBlink { 
+    0%, 40% { opacity:1; } 
+    50% { opacity:0; } 
+    60%, 100% { opacity:1; } 
   }
 
-  h1,h3,h2 { color:#f0f; text-align:center; }
-  input, button { font-size:18px; margin:10px; padding:10px; border:1px solid #0ff; background:#111; color:#0ff; border-radius:10px; }
+  h1,h3,h2 { color:#ffcc00; text-align:center; margin:5px 0; }
+  h1 { font-size:48px; }
+  h2 { font-size:36px; }
+  h3 { font-size:28px; }
+  input, button { font-size:20px; margin:12px; padding:12px; border:1px solid #0ff; background:#111; color:#0ff; border-radius:10px; }
   button { cursor:pointer; font-weight:700; }
   #flag-section { margin-top:30px; width:min(520px, 92vw); text-align:center; }
-  #scoreboard { margin-top:20px; list-style:none; padding:0; width:min(420px, 92vw); text-align:center; }
-  #scoreboard li { padding:6px 0; border-bottom:1px solid #0ff; transition:all 0.5s ease; }
+  #scoreboard { margin-top:20px; list-style:none; padding:0; width:min(420px, 92vw); text-align:center; font-size:22px; }
+  #scoreboard li { padding:8px 0; border-bottom:1px solid #0ff; transition:all 0.5s ease; }
   #scoreboard li.top { color:gold; font-weight:bold; }
   #scoreboard li.new { background:rgba(0,255,255,0.2); }
-  #nav { position:absolute; top:10px; right:20px; }
-  #nav a { margin-left:20px; color:#f0f; text-decoration:none; font-weight:bold; }
+  #nav { position:absolute; top:10px; right:20px; font-size:20px; }
+  #nav a { margin-left:20px; color:#ffcc00; text-decoration:none; font-weight:bold; }
 </style>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -137,8 +141,8 @@ window.onload = function(){
   document.body.appendChild(canvas);
   const ctx = canvas.getContext('2d');
   const stars = [];
-  for(let i=0;i<200;i++){
-    stars.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, r:Math.random()*1.5+0.5, dx:Math.random()*0.2-0.1, dy:Math.random()*0.2-0.1});
+  for(let i=0;i<250;i++){
+    stars.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, r:Math.random()*2+1, dx:Math.random()*0.3-0.15, dy:Math.random()*0.3-0.15});
   }
   function animate(){
     ctx.fillStyle="rgba(0,0,0,0.1)";
@@ -177,4 +181,3 @@ window.onload = function(){
 <ul id="scoreboard"></ul>
 </body>
 </html>
-
