@@ -5,55 +5,81 @@
 <title>CTF Flag Submission</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
+  /* Body & Background */
   body { 
-    margin:0; 
+    background:#000 url('imag.png') no-repeat center center fixed; 
+    background-size:cover; 
+    color:#0ff; 
     font-family:"Courier New", monospace; 
-    color:#00ffff; 
     display:flex; 
     flex-direction:column; 
     align-items:center; 
     padding:30px; 
-    overflow:hidden; 
-    position:relative;
-    background:#000; 
-  }
-  canvas { 
-    position:absolute; 
-    top:0; left:0; 
-    z-index:-1; 
   }
 
-  /* Top-left blinking string - old house light style */
-  #top-string {
-    position:absolute;
-    top:10px;
-    left:10px;
-    font-size:36px; /* increased */
-    color:#ffffff; /* pure white */
-    font-weight:bold;
-    font-family:"Courier New", monospace;
-    text-shadow:0 0 5px #fff, 0 0 10px #fff, 0 0 15px #fff;
-    animation: oldHouseBlink 1s infinite;
+  /* Creator string top-left ghost-house bulb effect */
+  #creator {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 16px; /* medium */
+    color: white;
   }
-  @keyframes oldHouseBlink { 
-    0%, 40% { opacity:1; } 
-    50% { opacity:0; } 
-    60%, 100% { opacity:1; } 
+  @keyframes flicker {
+    0%,100% { opacity: 1; }
+    10% { opacity: 0.3; }
+    20% { opacity: 0.8; }
+    30% { opacity: 0.2; }
+    40% { opacity: 0.9; }
+    50% { opacity: 0.4; }
+    60% { opacity: 1; }
+    70% { opacity: 0.3; }
+    80% { opacity: 0.8; }
+    90% { opacity: 0.2; }
   }
 
-  h1,h3,h2 { color:#ffcc00; text-align:center; margin:5px 0; }
-  h1 { font-size:48px; }
-  h2 { font-size:36px; }
-  h3 { font-size:28px; }
-  input, button { font-size:20px; margin:12px; padding:12px; border:1px solid #0ff; background:#111; color:#0ff; border-radius:10px; }
+  /* Headers */
+  h1,h2,h3 { color:#ff69b4; text-align:center; } /* pinkish headers */
+  h2 { font-size: 1.5em; }
+  h3 { font-size: 1.2em; }
+
+  /* Inputs & buttons */
+  input, button { 
+    font-size:18px; 
+    margin:10px; 
+    padding:10px; 
+    border:1px solid #0ff; 
+    background:#111; 
+    color:#0ff; 
+    border-radius:10px; 
+  }
   button { cursor:pointer; font-weight:700; }
-  #flag-section { margin-top:30px; width:min(520px, 92vw); text-align:center; }
-  #scoreboard { margin-top:20px; list-style:none; padding:0; width:min(420px, 92vw); text-align:center; font-size:22px; }
-  #scoreboard li { padding:8px 0; border-bottom:1px solid #0ff; transition:all 0.5s ease; }
-  #scoreboard li.top { color:gold; font-weight:bold; }
+
+  /* Flag section */
+  #flag-section { margin-top:30px; width:min(520px, 92vw); }
+
+  /* Scoreboard */
+  #scoreboard { 
+    margin-top:20px; 
+    list-style:none; 
+    padding:0; 
+    width:min(420px, 92vw); 
+    max-height:400px; 
+    overflow-y:auto; 
+  }
+  #scoreboard li { 
+    padding:6px 0; 
+    border-bottom:1px solid cyan; 
+    transition:all 0.5s ease; 
+    color: #ff69b4; /* default pink */
+  }
+  #scoreboard li.top { color: gold; font-weight:bold; }
   #scoreboard li.new { background:rgba(0,255,255,0.2); }
-  #nav { position:absolute; top:10px; right:20px; font-size:20px; }
-  #nav a { margin-left:20px; color:#ffcc00; text-decoration:none; font-weight:bold; }
+
+  /* Navigation */
+  #nav { position:absolute; top:10px; right:20px; }
+  #nav a { margin-left:20px; color:#0ff; text-decoration:none; font-weight:bold; }
+
 </style>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -65,6 +91,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+// SHA256 helper
 async function sha256(text){
   const enc = new TextEncoder().encode(text);
   const buf = await crypto.subtle.digest('SHA-256', enc);
@@ -79,11 +106,13 @@ onAuthStateChanged(auth, (u) => {
   loadScores();
 });
 
+// Logout
 window.logout = async function(){
   await signOut(auth);
   window.location.href="login.html";
 };
 
+// Flag submission
 window.submitFlag = async function() {
   if(!currentUser){ alert("Not logged in"); return; }
   const challenge = document.getElementById('challenge').value.trim();
@@ -98,6 +127,7 @@ window.submitFlag = async function() {
     const hash = await sha256(flagInput);
     if (hash !== (docData.flagHash || "")){ alert("❌ Wrong flag!"); return; }
 
+    // prevent duplicates
     const prev = await getDocs(query(collection(db,"scores"), where("uid","==",currentUser.uid), where("challenge","==",challenge)));
     if(!prev.empty){ alert("⚠ Already submitted"); return; }
 
@@ -115,6 +145,7 @@ window.submitFlag = async function() {
   document.getElementById('flag').value="";
 };
 
+// Load scoreboard
 async function loadScores(newChallenge=null){
   const ul = document.getElementById('scoreboard'); 
   ul.innerHTML='';
@@ -133,50 +164,32 @@ async function loadScores(newChallenge=null){
   });
 }
 
-// Galaxy star background
-window.onload = function(){
-  const canvas = document.createElement('canvas');
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  document.body.appendChild(canvas);
-  const ctx = canvas.getContext('2d');
-  const stars = [];
-  for(let i=0;i<250;i++){
-    stars.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, r:Math.random()*2+1, dx:Math.random()*0.3-0.15, dy:Math.random()*0.3-0.15});
-  }
-  function animate(){
-    ctx.fillStyle="rgba(0,0,0,0.1)";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    stars.forEach(s=>{
-      ctx.beginPath();
-      ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
-      ctx.fillStyle="#fff";
-      ctx.fill();
-      s.x+=s.dx; s.y+=s.dy;
-      if(s.x<0) s.x=canvas.width; if(s.x>canvas.width) s.x=0;
-      if(s.y<0) s.y=canvas.height; if(s.y>canvas.height) s.y=0;
-    });
-    requestAnimationFrame(animate);
-  }
-  animate();
-};
+// Flicker effect for creator
+setTimeout(() => {
+  document.getElementById('creator').style.animation = "flicker 1.5s infinite";
+}, 2000);
+
 </script>
 </head>
 <body>
-<div id="top-string">By Cybe3MaF1a</div>
+<div id="creator">By Cybe3MaF1a</div>
+
 <div id="nav">
   <a href="leaderboard.html">Leaderboard</a>
   <a href="user.html">Profile</a>
   <a href="#" onclick="logout()">Logout</a>
 </div>
+
 <h1>🔥 CTF Flag Submission</h1>
 <h3>Welcome: <span id="nickname-display"></span></h3>
+
 <div id="flag-section">
   <h2>Submit a Flag</h2>
   <input id="challenge" placeholder="Challenge Name"><br>
   <input id="flag" placeholder="Flag"><br>
   <button onclick="submitFlag()">Submit</button>
 </div>
+
 <h2>🏆 Live Scoreboard</h2>
 <ul id="scoreboard"></ul>
 </body>
