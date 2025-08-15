@@ -8,25 +8,27 @@
 html, body {
   margin:0; padding:0; height:100%;
   font-family:"Courier New", monospace;
-  overflow:hidden;
+  overflow:auto;
   background:#000;
   color:#0ff;
-  text-align:center;
 }
 #starfield { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
 #cyber-text {
   position:absolute; top:10px; left:10px; font-size:1.5rem;
   color:#fff; z-index:2; font-weight:bold; text-shadow:0 0 10px #fff;
 }
-#content { position:relative; z-index:1; padding:30px; }
-h1,h2,h3 { color:#f0f; }
-#nav { position:absolute; top:10px; right:20px; z-index:1; }
+#nav { position:absolute; top:10px; right:20px; z-index:2; }
 #nav a { margin-left:20px; color:#f0f; text-decoration:none; font-weight:bold; }
-#stats { margin-top:50px; text-align:center; }
-table { margin:20px auto; border-collapse:collapse; width:min(600px,90vw); }
-th, td { border:1px solid #0ff; padding:10px; font-size:1.1rem; color:#0ff; text-align:center; }
-th { background:rgba(255,255,255,0.1); }
-#success-rate { margin-top:20px; font-size:1.3rem; font-weight:bold; }
+#content { position:relative; z-index:1; padding:60px 20px 20px; max-width:900px; margin:0 auto; }
+h1,h2 { color:#f0f; text-align:center; }
+.challenge-list { display:flex; flex-direction:column; gap:10px; margin-top:30px; }
+.challenge-item {
+  display:flex; justify-content:space-between; padding:12px 20px; border:1px solid #0ff; border-radius:8px;
+  background:rgba(0,255,255,0.05);
+  font-size:1.1rem;
+}
+.challenge-item span { display:inline-block; }
+#success-rate { margin-top:20px; font-size:1.3rem; font-weight:bold; text-align:center; }
 </style>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -61,20 +63,27 @@ async function loadProfile(){
         }
     });
 
-    // Assuming max points per challenge = 100
-    const successRate = totalAttempts===0 ? 0 : Math.min(100, ((points/(totalAttempts*100))*100)).toFixed(2);
+    const maxPointsPerChallenge=100;
+    const successRate = totalAttempts===0 ? 0 : Math.min(100, ((points/(totalAttempts*maxPointsPerChallenge))*100)).toFixed(2);
 
-    // Build table
-    let tableHTML = `<h2>${nickname} Profile</h2>`;
+    // Build challenge list
+    let html=`<h1>${nickname} Profile</h1>`;
     if(completed.length===0){
-      tableHTML += `<p>No challenges completed yet.</p>`;
+        html += `<p>No challenges completed yet.</p>`;
     } else {
-      tableHTML += `<table><tr><th>Challenge</th><th>Points</th></tr>`;
-      completed.forEach(c=>{ tableHTML += `<tr><td>${c.challenge}</td><td>${c.points}</td></tr>`; });
-      tableHTML += `</table>`;
+        html += `<div class="challenge-list">`;
+        completed.forEach(c=>{
+            const failed = 1 - c.points/maxPointsPerChallenge;
+            const percentage = ((c.points/maxPointsPerChallenge)*100).toFixed(1);
+            html += `<div class="challenge-item">
+                        <span>${c.challenge}</span>
+                        <span>${c.points}/${maxPointsPerChallenge} pts | ${percentage}% success | Failed: ${Math.round(failed*100)}%</span>
+                     </div>`;
+        });
+        html += `</div>`;
     }
-    tableHTML += `<div id="success-rate">Success Rate: ${successRate}%</div>`;
-    document.getElementById('stats').innerHTML = tableHTML;
+    html += `<div id="success-rate">Overall Success Rate: ${successRate}%</div>`;
+    document.getElementById('stats').innerHTML = html;
 }
 
 // Stars animation
@@ -124,4 +133,3 @@ window.onload = function(){
 </div>
 </body>
 </html>
-
