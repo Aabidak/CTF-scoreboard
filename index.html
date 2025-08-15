@@ -5,50 +5,33 @@
 <title>CTF Flag Submission</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    font-family: "Courier New", monospace;
-    color: #0ff;
-    text-align: center;
-    overflow: hidden;
-    background: #000;
-  }
-
-  #starfield {
-    position: fixed;
-    top:0; left:0;
-    width:100%; height:100%;
-    z-index:0;
-  }
-
-  #content {
-    position: relative;
-    z-index:1;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    min-height:100vh;
-    padding:30px;
-  }
-
-  h1 { font-size:3rem; color:#f0f; text-shadow:0 0 15px #f0f; margin-bottom:10px;}
-  h2 { font-size:2.2rem; color:#f0f; margin:20px 0 10px 0;}
-  h3 { font-size:1.8rem; color:#f0f; margin-bottom:20px;}
-
-  input, button { font-size:20px; margin:10px; padding:12px 20px; border:1px solid #0ff; background:rgba(17,17,17,0.85); color:#0ff; border-radius:10px; text-align:center;}
-  button { cursor:pointer; font-weight:700; }
-
-  #flag-section { width:min(520px,92vw); display:flex; flex-direction:column; align-items:center; }
-  #scoreboard { margin-top:20px; list-style:none; padding:0; width:min(420px,92vw); text-align:center; }
-  #scoreboard li { padding:10px 0; border-bottom:1px solid #0ff; font-size:1.3rem; transition:all 0.5s ease; }
-  #scoreboard li.top { color: gold; font-weight:bold; }
-  #scoreboard li.new { background: rgba(0,255,255,0.2); }
-
-  #nav { position:absolute; top:10px; width:100%; text-align:center; z-index:1; }
-  #nav a { margin:0 20px; color:#f0f; text-decoration:none; font-weight:bold; font-size:1.2rem; }
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  font-family: "Courier New", monospace;
+  color: #0ff;
+  text-align: center;
+  overflow: hidden;
+  background: #000;
+}
+#starfield { position: fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
+#content {
+  position: relative; z-index:1;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  min-height:100vh; padding:30px;
+}
+h1 { font-size:3rem; color:#f0f; text-shadow:0 0 15px #f0f; margin-bottom:10px;}
+h2 { font-size:2.2rem; color:#f0f; margin:20px 0 10px 0;}
+h3 { font-size:1.8rem; color:#f0f; margin-bottom:20px;}
+input, button { font-size:20px; margin:10px; padding:12px 20px; border:1px solid #0ff; background:rgba(17,17,17,0.85); color:#0ff; border-radius:10px; text-align:center;}
+button { cursor:pointer; font-weight:700; }
+#flag-section { width:min(520px,92vw); display:flex; flex-direction:column; align-items:center; }
+#scoreboard { margin-top:20px; list-style:none; padding:0; width:min(420px,92vw); text-align:center; }
+#scoreboard li { padding:10px 0; border-bottom:1px solid #0ff; font-size:1.3rem; transition:all 0.5s ease; }
+#scoreboard li.top { color: gold; font-weight:bold; }
+#scoreboard li.new { background: rgba(0,255,255,0.2); }
+#nav { position:absolute; top:10px; width:100%; text-align:center; z-index:1; }
+#nav a { margin:0 20px; color:#f0f; text-decoration:none; font-weight:bold; font-size:1.2rem; }
 </style>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -150,39 +133,38 @@ async function loadScores(newChallenge=null){
 </div>
 
 <script>
-// Starfield setup
+// Canvas setup
 const canvas = document.getElementById('starfield');
 const ctx = canvas.getContext('2d');
 let width = canvas.width = window.innerWidth;
 let height = canvas.height = window.innerHeight;
-window.addEventListener('resize', () => {
-  width = canvas.width = window.innerWidth;
-  height = canvas.height = window.innerHeight;
-});
+window.addEventListener('resize', () => { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; });
 
+// Starfield
 const stars = [];
-const numStars = 250;
-for(let i=0;i<numStars;i++){
-  stars.push({
-    x: Math.random()*width,
-    y: Math.random()*height,
-    r: Math.random()*1.5,
-    opacity: Math.random()
-  });
+for(let i=0;i<250;i++){
+  stars.push({x:Math.random()*width, y:Math.random()*height, r:Math.random()*1.5, opacity:Math.random()});
 }
 
-// Hacker laptop + Wi-Fi adapter flying object
-const hackerImg = new Image();
-const wifiImg = new Image();
-// Replace with actual image URLs or base64
-hackerImg.src = 'laptop_hoodie.png';
-wifiImg.src = 'wifi_adapter.png';
+// Hacker laptop character
+let hacker = {x:-80, y:height/2, speed:2, width:50, height:50};
 
-const flyers = [
-  {img:hackerImg, x:-100, y:Math.random()*height*0.7, speed:2+Math.random()*2, scale:0.6+Math.random()*0.4},
-  {img:wifiImg, x:-150, y:Math.random()*height*0.7, speed:3+Math.random()*2, scale:0.4+Math.random()*0.3}
-];
+// Draw laptop hoodie hacker
+function drawHacker(h){
+  // body (white laptop)
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(h.x, h.y, h.width, h.height);
+  // hoodie (red)
+  ctx.fillStyle = '#f00';
+  ctx.beginPath();
+  ctx.arc(h.x+h.width/2, h.y, h.width/2, Math.PI, 0);
+  ctx.fill();
+  // optional: screen visor
+  ctx.fillStyle = '#00f';
+  ctx.fillRect(h.x+h.width*0.15, h.y+h.height*0.15, h.width*0.7, h.height*0.3);
+}
 
+// Animation loop
 function animate(){
   ctx.fillStyle = '#000';
   ctx.fillRect(0,0,width,height);
@@ -190,25 +172,21 @@ function animate(){
   // Draw stars
   for(let s of stars){
     s.opacity += (Math.random()-0.5)*0.05;
-    if(s.opacity<0) s.opacity=0;
-    if(s.opacity>1) s.opacity=1;
+    if(s.opacity<0)s.opacity=0;
+    if(s.opacity>1)s.opacity=1;
     ctx.beginPath();
     ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
     ctx.fillStyle=`rgba(255,255,255,${s.opacity})`;
     ctx.fill();
   }
 
-  // Draw flyers
-  for(let f of flyers){
-    if(f.x > width + 100){
-      f.x = -100;
-      f.y = Math.random()*height*0.7;
-      f.speed = 2+Math.random()*3;
-      f.scale = 0.5+Math.random()*0.5;
-    }
-    ctx.drawImage(f.img, f.x, f.y, f.img.width*f.scale, f.img.height*f.scale);
-    f.x += f.speed;
+  // Move and draw hacker
+  hacker.x += hacker.speed;
+  if(hacker.x > width + 100){
+    hacker.x = -80;
+    hacker.y = Math.random()*(height-60);
   }
+  drawHacker(hacker);
 
   requestAnimationFrame(animate);
 }
@@ -216,4 +194,3 @@ animate();
 </script>
 </body>
 </html>
-
