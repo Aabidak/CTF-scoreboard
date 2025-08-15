@@ -12,7 +12,7 @@
     color: #0ff;
     background: black;
     overflow-y: auto;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -26,28 +26,37 @@
   }
   #nav a {
     margin-left: 20px;
-    color: #f0f;
+    color: #0ff;
     text-decoration: none;
     font-weight: bold;
   }
 
   h1 {
     text-align: center;
-    color: #f0f;
+    color: #0ff;
     margin-top: 60px;
+    text-shadow: 0 0 10px #0ff;
   }
 
-  #top3 {
-    max-width: 900px;
-    margin: 20px auto;
+  table {
+    border-collapse: collapse;
+    margin-top: 20px;
+    width: 90%;
+    max-width: 800px;
+    color: #0ff;
+    text-align: left;
+    font-size: 18px;
+    text-shadow: 0 0 5px #0ff;
+  }
+  th, td {
+    border: 1px solid #0ff;
+    padding: 10px 15px;
+  }
+  th {
+    background: rgba(0,255,255,0.1);
     text-align: center;
-    font-size: 24px;
-    line-height: 1.8;
   }
-
-  .gold { color: gold; font-weight: bold; }
-  .silver { color: silver; font-weight: bold; }
-  .bronze { color: peru; font-weight: bold; }
+  tr:nth-child(even) { background: rgba(0,255,255,0.05); }
 
   canvas#stars {
     position: fixed;
@@ -94,17 +103,17 @@ async function loadLeaderboard() {
   });
 
   const sorted = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
-  const top3Container = document.getElementById('top3');
+  const top3Container = document.getElementById('leaderboard-table');
 
-  let html = '';
-  if(sorted[0]) html += `<div class="gold">🥇 ${sorted[0][0]} : ${sorted[0][1]} pts</div>`;
-  if(sorted[1]) html += `<div class="silver">🥈 ${sorted[1][0]} : ${sorted[1][1]} pts</div>`;
-  if(sorted[2]) html += `<div class="bronze">🥉 ${sorted[2][0]} : ${sorted[2][1]} pts</div>`;
+  let html = `<tr><th>Rank</th><th>Player</th><th>Points</th></tr>`;
+  sorted.forEach(([nick, pts], idx) => {
+    html += `<tr><td>${idx+1}</td><td>${nick}</td><td>${pts}</td></tr>`;
+  });
 
   top3Container.innerHTML = html;
 }
 
-// Simple starfield
+// STARFIELD
 window.onload = function() {
   const canvas = document.createElement('canvas');
   canvas.id = 'stars';
@@ -145,6 +154,6 @@ window.onload = function() {
 </div>
 
 <h1>🏆 CTF Leaderboard</h1>
-<div id="top3"></div>
+<table id="leaderboard-table"></table>
 </body>
 </html>
