@@ -5,60 +5,41 @@
 <title>CTF Flag Submission</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  /* Full dark galaxy background with moving, twinkling stars */
-  body { 
+  html, body {
     margin: 0;
-    padding: 30px;
+    padding: 0;
+    height: 100%;
     font-family: "Courier New", monospace;
     color: #0ff;
+    text-align: center;
+    overflow: hidden;
+  }
+
+  /* Canvas for stars */
+  #starfield {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    background: #000;
+  }
+
+  /* Keep content above canvas */
+  #content {
+    position: relative;
+    z-index: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     min-height: 100vh;
-    text-align: center;
-    background: #000;
-    overflow: hidden;
+    padding: 30px;
   }
 
-  /* Star overlay */
-  body::before {
-    content: '';
-    position: absolute;
-    top:0; left:0;
-    width:100%; height:100%;
-    background: 
-      radial-gradient(circle at 20% 30%, rgba(255,255,255,0.12) 0%, transparent 70%),
-      radial-gradient(circle at 70% 80%, rgba(255,255,255,0.08) 0%, transparent 60%),
-      radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05) 0%, transparent 50%);
-    pointer-events: none;
-    z-index: 0;
-    animation: starTwinkle 4s infinite alternate, starMove 60s linear infinite;
-  }
-
-  @keyframes starTwinkle {
-    0% { opacity: 0.7; }
-    50% { opacity: 1; }
-    100% { opacity: 0.7; }
-  }
-
-  @keyframes starMove {
-    0% { transform: translate(0,0); }
-    100% { transform: translate(-50px,-50px); }
-  }
-
-  /* Keep content above overlay */
-  h1, h2, h3, input, button, #flag-section, #scoreboard, #nav {
-    position: relative;
-    z-index: 1;
-  }
-
-  /* Headings larger and centered */
   h1 { font-size: 3rem; color: #f0f; text-shadow: 0 0 15px #f0f; margin-bottom: 10px; }
   h2 { font-size: 2.2rem; color: #f0f; margin: 20px 0 10px 0; }
   h3 { font-size: 1.8rem; color: #f0f; margin-bottom: 20px; }
 
-  /* Inputs and button bigger */
   input, button { 
     font-size: 20px; 
     margin: 10px; 
@@ -72,14 +53,12 @@
 
   button { cursor: pointer; font-weight: 700; }
 
-  /* Flag section and scoreboard centered */
   #flag-section { width: min(520px, 92vw); display: flex; flex-direction: column; align-items: center; }
   #scoreboard { margin-top: 20px; list-style: none; padding: 0; width: min(420px, 92vw); text-align: center; }
   #scoreboard li { padding: 10px 0; border-bottom: 1px solid #0ff; font-size: 1.3rem; transition: all 0.5s ease; }
   #scoreboard li.top { color: gold; font-weight: bold; }
   #scoreboard li.new { background: rgba(0,255,255,0.2); }
 
-  /* Navigation links centered and bigger */
   #nav { position: absolute; top: 10px; width: 100%; text-align: center; z-index: 1; }
   #nav a { margin: 0 20px; color: #f0f; text-decoration: none; font-weight: bold; font-size: 1.2rem; }
 </style>
@@ -126,7 +105,6 @@ window.submitFlag = async function() {
     const hash = await sha256(flagInput);
     if (hash !== (docData.flagHash || "")){ alert("❌ Wrong flag!"); return; }
 
-    // prevent duplicates
     const prev = await getDocs(query(collection(db,"scores"), where("uid","==",currentUser.uid), where("challenge","==",challenge)));
     if(!prev.empty){ alert("⚠ Already submitted"); return; }
 
@@ -164,20 +142,90 @@ async function loadScores(newChallenge=null){
 </script>
 </head>
 <body>
-<div id="nav">
-  <a href="leaderboard.html">Leaderboard</a>
-  <a href="user.html">Profile</a>
-  <a href="#" onclick="logout()">Logout</a>
+<canvas id="starfield"></canvas>
+<div id="content">
+  <div id="nav">
+    <a href="leaderboard.html">Leaderboard</a>
+    <a href="user.html">Profile</a>
+    <a href="#" onclick="logout()">Logout</a>
+  </div>
+  <h1>🔥 CTF Flag Submission</h1>
+  <h3>Welcome: <span id="nickname-display"></span></h3>
+  <div id="flag-section">
+    <h2>Submit a Flag</h2>
+    <input id="challenge" placeholder="Challenge Name"><br>
+    <input id="flag" placeholder="Flag"><br>
+    <button onclick="submitFlag()">Submit</button>
+  </div>
+  <h2>🏆 Live Scoreboard</h2>
+  <ul id="scoreboard"></ul>
 </div>
-<h1>🔥 CTF Flag Submission</h1>
-<h3>Welcome: <span id="nickname-display"></span></h3>
-<div id="flag-section">
-  <h2>Submit a Flag</h2>
-  <input id="challenge" placeholder="Challenge Name"><br>
-  <input id="flag" placeholder="Flag"><br>
-  <button onclick="submitFlag()">Submit</button>
-</div>
-<h2>🏆 Live Scoreboard</h2>
-<ul id="scoreboard"></ul>
+
+<script>
+// Starfield and comet animation
+const canvas = document.getElementById('starfield');
+const ctx = canvas.getContext('2d');
+let width = canvas.width = window.innerWidth;
+let height = canvas.height = window.innerHeight;
+
+window.addEventListener('resize', () => {
+  width = canvas.width = window.innerWidth;
+  height = canvas.height = window.innerHeight;
+});
+
+const stars = [];
+const numStars = 200;
+
+// Create stars
+for(let i=0;i<numStars;i++){
+  stars.push({
+    x: Math.random()*width,
+    y: Math.random()*height,
+    r: Math.random()*1.5,
+    opacity: Math.random()
+  });
+}
+
+let comet = { x:-50, y:Math.random()*height/2, len:150, speed:10, active:false, timer:0 };
+
+// Draw loop
+function animate(){
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,width,height);
+
+  // Draw stars
+  for(let s of stars){
+    s.opacity += (Math.random()-0.5)*0.05;
+    if(s.opacity < 0) s.opacity=0;
+    if(s.opacity > 1) s.opacity=1;
+    ctx.beginPath();
+    ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    ctx.fillStyle = `rgba(255,255,255,${s.opacity})`;
+    ctx.fill();
+  }
+
+  // Comet logic
+  comet.timer += 1;
+  if(comet.timer > 240){ // ~4 seconds at 60fps
+    comet.active = true;
+    comet.x = -50;
+    comet.y = Math.random()*height/2;
+    comet.timer = 0;
+  }
+  if(comet.active){
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(comet.x, comet.y);
+    ctx.lineTo(comet.x - comet.len, comet.y + comet.len*0.2);
+    ctx.stroke();
+    comet.x += comet.speed;
+    if(comet.x - comet.len > width) comet.active = false;
+  }
+
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
 </body>
 </html>
