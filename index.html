@@ -6,67 +6,50 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   body { 
-    margin:0;
-    padding:30px; 
-    font-family:"Courier New", monospace;
-    display:flex; flex-direction:column; align-items:center; 
+    margin:0; padding:30px; font-family:"Courier New", monospace;
+    display:flex; flex-direction:column; align-items:center;
     background:#000; color:#0ff; overflow-x:hidden;
   }
 
   /* Stars background */
   canvas#stars { 
-    position:fixed; 
-    top:0; left:0; width:100%; height:100%; 
-    z-index:-1; 
+    position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1; 
     background:#000;
   }
 
-  /* Creator neon top-left, bulb flicker */
-  #creator {
-    position:absolute; top:10px; left:10px;
-    font-size:22px; font-weight:bold;
+  /* Old-house flicker for creator only */
+  .flicker {
     color:#fff;
-    text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #fff;
+    text-shadow:0 0 2px #fff,0 0 5px #fff,0 0 10px #fff;
+    animation: flickerAnim 3s infinite;
   }
 
-  /* Neon fade for main headers */
+  @keyframes flickerAnim {
+    0%, 100% { text-shadow:0 0 0px #fff; opacity:0.3; }
+    5%, 10% { text-shadow:0 0 5px #fff,0 0 10px #fff; opacity:1; }
+    15%, 20% { text-shadow:0 0 2px #fff,0 0 5px #fff; opacity:0.6; }
+    25%, 30% { text-shadow:0 0 10px #fff,0 0 20px #fff; opacity:1; }
+    50% { text-shadow:0 0 0px #fff; opacity:0.2; }
+  }
+
+  /* Neon effect for headers / submit / scoreboard */
   .neon {
-    color:#ff69b4;
-    text-shadow: 0 0 5px #ff69b4, 0 0 10px #ff69b4, 0 0 20px #ff69b4, 0 0 30px #ff69b4;
-    animation: neonFade 3s infinite alternate;
+    color:#0ff;
+    text-shadow:0 0 5px #0ff,0 0 10px #0ff,0 0 20px #0ff;
   }
 
-  @keyframes neonFade {
-    0% { text-shadow: 0 0 2px #ff69b4,0 0 5px #ff69b4,0 0 10px #ff69b4,0 0 20px #ff69b4; }
-    100% { text-shadow: 0 0 20px #ff69b4,0 0 40px #ff69b4,0 0 60px #ff69b4,0 0 80px #ff69b4; }
-  }
-
-  /* Headers & inputs */
-  h1,h2,h3 { text-align:center; } 
-  h2 { font-size:1.5em; } 
-  h3 { font-size:1.2em; }
-
-  input, button { 
-    font-size:18px; margin:10px; padding:10px; border:1px solid #0ff; 
-    background:#111; color:#0ff; border-radius:10px; 
-  }
+  input, button { font-size:18px; margin:10px; padding:10px; border:1px solid #0ff; background:#111; color:#0ff; border-radius:10px; }
   button { cursor:pointer; font-weight:700; }
-
-  #flag-section { margin-top:30px; width:min(520px,92vw); }
-
-  /* Scoreboard */
-  #scoreboard { 
-    margin-top:20px; list-style:none; padding:0; width:min(420px,92vw); 
-    max-height:400px; overflow-y:auto; 
-  }
-  #scoreboard li { padding:6px 0; border-bottom:1px solid cyan; color:#ff69b4; transition:all 0.5s ease; }
-  #scoreboard li.top { color: gold; font-weight:bold; }
+  #flag-section { margin-top:30px; width:min(520px, 92vw); }
+  #scoreboard { margin-top:20px; list-style:none; padding:0; width:min(420px, 92vw); }
+  #scoreboard li { padding:6px 0; border-bottom:1px solid #0ff; transition:all 0.5s ease; }
+  #scoreboard li.top { color:gold; font-weight:bold; }
   #scoreboard li.new { background:rgba(0,255,255,0.2); }
-
-  /* Navigation */
   #nav { position:absolute; top:10px; right:20px; }
-  #nav a { margin-left:20px; color:#0ff; text-decoration:none; font-weight:bold; }
-
+  #nav a { margin-left:20px; text-decoration:none; font-weight:bold; color:#0ff; text-shadow:0 0 5px #0ff,0 0 10px #0ff; }
+  
+  /* Creator top-left */
+  #creator { position:absolute; top:10px; left:20px; font-size:16px; }
 </style>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -146,65 +129,43 @@ async function loadScores(newChallenge=null){
   });
 }
 
-// Creator flicker: only neon glow flickers, text always visible
-window.onload = function() {
-  const creator = document.getElementById('creator');
-  function flickerBulb(){
-    setTimeout(()=>{
-      let flicks=0;
-      const flickInterval = setInterval(()=>{
-        creator.style.textShadow = flicks%2===0 
-          ? "0 0 5px #fff, 0 0 10px #fff, 0 0 20px #fff" 
-          : "0 0 2px #fff, 0 0 4px #fff, 0 0 6px #fff";
-        flicks++;
-        if(flicks>5){ clearInterval(flickInterval); flickerBulb(); }
-      },100);
-    },2000);
-  }
-  flickerBulb();
-
-  // Stars canvas
+// Starry background
+window.onload = function(){
   const canvas = document.createElement('canvas');
-  canvas.id='stars';
+  canvas.id = 'stars';
   document.body.appendChild(canvas);
   const ctx = canvas.getContext('2d');
-  let w=canvas.width=window.innerWidth;
-  let h=canvas.height=window.innerHeight;
-
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
   const stars = [];
-  for(let i=0;i<200;i++){
-    stars.push({x:Math.random()*w, y:Math.random()*h, r:Math.random()*1.5, blink:Math.random()});
+  for(let i=0;i<150;i++){
+    stars.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, r:Math.random()*1.5+0.5});
   }
-
-  function animate(){
-    ctx.clearRect(0,0,w,h);
-    for(let s of stars){
-      s.blink += 0.02;
-      const alpha = 0.5 + 0.5*Math.sin(s.blink*2*Math.PI);
-      ctx.fillStyle=`rgba(255,255,255,${alpha})`;
-      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,2*Math.PI); ctx.fill();
-    }
-    requestAnimationFrame(animate);
+  function drawStars(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    stars.forEach(s=>{
+      ctx.beginPath();
+      ctx.arc(s.x,s.y,s.r,0,2*Math.PI);
+      ctx.fillStyle='#0ff';
+      ctx.fill();
+    });
+    requestAnimationFrame(drawStars);
   }
-  animate();
-  window.addEventListener('resize',()=>{ w=canvas.width=window.innerWidth; h=canvas.height=window.innerHeight; });
+  drawStars();
 };
-
 </script>
 </head>
 <body>
-<div id="creator">By Cybe3MaF1a</div>
-
 <div id="nav">
-  <a href="leaderboard.html">Leaderboard</a>
-  <a href="user.html">Profile</a>
-  <a href="#" onclick="logout()">Logout</a>
+  <a href="leaderboard.html" class="neon">Leaderboard</a>
+  <a href="user.html" class="neon">Profile</a>
+  <a href="#" onclick="logout()" class="neon">Logout</a>
 </div>
 
 <h1 class="neon">🔥 CTF Flag Submission</h1>
 <h3 class="neon">Welcome: <span id="nickname-display"></span></h3>
 
-<div id="flag-section">
+<div id="flag-section" class="neon">
   <h2 class="neon">Submit a Flag</h2>
   <input id="challenge" placeholder="Challenge Name"><br>
   <input id="flag" placeholder="Flag"><br>
@@ -213,5 +174,8 @@ window.onload = function() {
 
 <h2 class="neon">🏆 Live Scoreboard</h2>
 <ul id="scoreboard"></ul>
+
+<!-- Creator label top-left with flicker -->
+<div id="creator" class="flicker">By Cybe3MaF1a</div>
 </body>
 </html>
