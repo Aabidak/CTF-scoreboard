@@ -8,10 +8,9 @@
 html, body {
   margin:0; padding:0; height:100%;
   font-family:"Courier New", monospace;
-  overflow:hidden;
+  overflow:auto;
   background:#000;
   color:#0ff;
-  text-align:center;
 }
 #starfield { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
 #cyber-text {
@@ -20,10 +19,10 @@ html, body {
 }
 #nav { position:absolute; top:10px; right:20px; z-index:2; }
 #nav a { margin-left:20px; color:#f0f; text-decoration:none; font-weight:bold; }
-#content { position:relative; z-index:1; padding-top:60px; }
-h1 { font-size:3rem; color:#f0f; text-shadow:0 0 15px #f0f; margin-bottom:20px; position:relative; }
-#scoreboard { list-style:none; padding:0; width:min(480px, 90vw); margin:0 auto; }
-#scoreboard li { padding:6px; border-bottom:1px solid #0ff; font-size:1.2rem; }
+#content { position:relative; z-index:1; padding:60px 20px 20px; max-width:900px; margin:0 auto; }
+h1 { font-size:3rem; color:#f0f; text-shadow:0 0 15px #f0f; text-align:center; margin-bottom:20px; position:relative; }
+#scoreboard { list-style:none; padding:0; margin:0 auto; max-height:80vh; overflow-y:auto; }
+#scoreboard li { padding:10px 15px; border-bottom:1px solid #0ff; font-size:1.2rem; }
 #scoreboard li.top { color: gold; font-weight:bold; }
 </style>
 <script type="module">
