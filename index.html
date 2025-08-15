@@ -6,19 +6,39 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   body { 
-    background:#000; 
-    color:#0ff; 
+    margin:0; 
     font-family:"Courier New", monospace; 
-    display:flex; flex-direction:column; align-items:center; 
+    color:#0ff; 
+    display:flex; 
+    flex-direction:column; 
+    align-items:center; 
     padding:30px; 
-    overflow-y: auto; 
-    min-height: 100vh;
+    overflow:hidden; 
+    position:relative;
   }
-  h1,h2,h3 { color:#f0f; }
+  canvas { 
+    position:absolute; 
+    top:0; left:0; 
+    z-index:-1; 
+  }
+  #top-left-string {
+    position:absolute; 
+    top:10px; left:10px; 
+    font-size:18px; 
+    color:#f0f; 
+    font-weight:bold; 
+    text-shadow:0 0 10px #f0f;
+    animation: blink 1.5s infinite;
+  }
+  @keyframes blink { 
+    0%,50%,100% { opacity:1; } 
+    25%,75% { opacity:0.2; } 
+  }
+  h1,h3,h2 { color:#f0f; }
   input, button { font-size:18px; margin:10px; padding:10px; border:1px solid #0ff; background:#111; color:#0ff; border-radius:10px; }
   button { cursor:pointer; font-weight:700; }
   #flag-section { margin-top:30px; width:min(520px, 92vw); }
-  #scoreboard { margin-top:20px; list-style:none; padding:0; width:min(420px, 92vw); max-height:400px; overflow-y:auto; border:1px solid #0ff; border-radius:10px; }
+  #scoreboard { margin-top:20px; list-style:none; padding:0; width:min(420px, 92vw); }
   #scoreboard li { padding:6px 0; border-bottom:1px solid #0ff; transition:all 0.5s ease; }
   #scoreboard li.top { color:gold; font-weight:bold; }
   #scoreboard li.new { background:rgba(0,255,255,0.2); }
@@ -35,75 +55,26 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-async function sha256(text){
-  const enc = new TextEncoder().encode(text);
-  const buf = await crypto.subtle.digest('SHA-256', enc);
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
+// --- SHA256, Auth, Submit flag, Scoreboard logic unchanged ---
+async function sha256(text){ const enc=new TextEncoder().encode(text); const buf=await crypto.subtle.digest('SHA-256',enc); return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join(''); }
+let currentUser=null;
+onAuthStateChanged(auth,(u)=>{ if(!u||!u.email||!u.email.endsWith("@player.local")){ window.location.href="login.html"; return; } currentUser=u; document.getElementById('nickname-display').textContent=u.displayName||(u.email.split("@")[0]); loadScores(); });
+window.logout=async function(){ await signOut(auth); window.location.href="login.html"; };
+window.submitFlag=async function(){ const challenge=document.getElementById('challenge').value.trim(); const flagInput=document.getElementById('flag').value.trim(); if(!currentUser){ alert("Not logged in"); return;} if(!challenge||!flagInput){ alert("Both fields required"); return;} try{ const q1=query(collection(db,"challenges"),where("name","==",challenge)); const snap=await getDocs(q1); if(snap.empty){ alert("❌ Challenge not found"); return;} const docData=snap.docs[0].data(); const hash=await sha256(flagInput); if(hash!==(docData.flagHash||"")){ alert("❌ Wrong flag!"); return;} const prev=await getDocs(query(collection(db,"scores"),where("uid","==",currentUser.uid),where("challenge","==",challenge))); if(!prev.empty){ alert("⚠ Already submitted"); return;} const pts=docData.points||100; await addDoc(collection(db,"scores"),{ uid:currentUser.uid, nickname:currentUser.displayName||(currentUser.email.split("@")[0]), challenge, points:pts, timestamp:new Date() }); alert("✅ Correct! "+pts+" pts"); loadScores(challenge); }catch(e){alert("Error: "+e.message);} document.getElementById('challenge').value=""; document.getElementById('flag').value=""; };
+async function loadScores(newChallenge=null){ const ul=document.getElementById('scoreboard'); ul.innerHTML=''; const snap=await getDocs(query(collection(db,"scores"),orderBy("timestamp","asc"))); const scores={}; snap.forEach(doc=>{ const d=doc.data(); scores[d.nickname]=(scores[d.nickname]||0)+d.points; }); const sorted=Object.entries(scores).sort((a,b)=>b[1]-a[1]); sorted.forEach(([nick,pts],idx)=>{ const li=document.createElement('li'); li.textContent=`${idx+1}. ${nick} : ${pts} pts`; if(idx===0) li.classList.add('top'); if(currentUser&&nick===(currentUser.displayName||(currentUser.email.split("@")[0]))&&newChallenge) li.classList.add('new'); ul.appendChild(li); if(currentUser&&nick===(currentUser.displayName||(currentUser.email.split("@")[0]))&&newChallenge) setTimeout(()=>li.classList.remove('new'),1500); }); }
 
-let currentUser = null;
-onAuthStateChanged(auth, (u) => {
-  if(!u || !u.email || !u.email.endsWith("@player.local")) { window.location.href="login.html"; return; }
-  currentUser = u;
-  document.getElementById('nickname-display').textContent = u.displayName || (u.email.split("@")[0]);
-  loadScores();
-});
-
-window.logout = async function(){
-  await signOut(auth);
-  window.location.href="login.html";
-};
-
-window.submitFlag = async function() {
-  if(!currentUser){ alert("Not logged in"); return; }
-  const challenge = document.getElementById('challenge').value.trim();
-  const flagInput = document.getElementById('flag').value.trim();
-  if(!challenge || !flagInput){ alert("Both fields required"); return; }
-
-  try {
-    const q1 = query(collection(db,"challenges"), where("name","==",challenge));
-    const snap = await getDocs(q1);
-    if (snap.empty){ alert("❌ Challenge not found"); return; }
-    const docData = snap.docs[0].data();
-    const hash = await sha256(flagInput);
-    if (hash !== (docData.flagHash || "")){ alert("❌ Wrong flag!"); return; }
-
-    // prevent duplicates
-    const prev = await getDocs(query(collection(db,"scores"), where("uid","==",currentUser.uid), where("challenge","==",challenge)));
-    if(!prev.empty){ alert("⚠ Already submitted"); return; }
-
-    const pts = docData.points || 100;
-    await addDoc(collection(db,"scores"), {
-      uid: currentUser.uid,
-      nickname: currentUser.displayName || (currentUser.email.split("@")[0]),
-      challenge, points: pts, timestamp: new Date()
-    });
-    alert("✅ Correct! +" + pts + " pts");
-    loadScores(challenge);
-  } catch(e){ alert("Error: "+e.message); }
-
-  document.getElementById('challenge').value="";
-  document.getElementById('flag').value="";
-};
-
-async function loadScores(newChallenge=null){
-  const ul = document.getElementById('scoreboard'); 
-  ul.innerHTML='';
-  const snap = await getDocs(query(collection(db,"scores"), orderBy("timestamp","asc")));
-  const scores = {};
-  snap.forEach(doc=>{ const d=doc.data(); scores[d.nickname]=(scores[d.nickname]||0)+d.points; });
-
-  const sorted = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
-  sorted.forEach(([nick,pts],idx)=>{
-    const li = document.createElement('li'); 
-    li.textContent = `${idx+1}. ${nick} : ${pts} pts`;
-    if(idx===0) li.classList.add('top');
-    if(currentUser && nick===(currentUser.displayName || (currentUser.email.split("@")[0])) && newChallenge) li.classList.add('new');
-    ul.appendChild(li);
-    if(currentUser && nick===(currentUser.displayName || (currentUser.email.split("@")[0])) && newChallenge) setTimeout(()=>li.classList.remove('new'),1500);
-  });
-}
+// --- Galaxy background ---
+const canvas=document.createElement('canvas');
+document.body.appendChild(canvas);
+const ctx=canvas.getContext('2d');
+let w=canvas.width=window.innerWidth, h=canvas.height=window.innerHeight;
+const stars=[];
+for(let i=0;i<300;i++){ stars.push({x:Math.random()*w, y:Math.random()*h, r:Math.random()*1.5, dx:(Math.random()-0.5)*0.5, dy:(Math.random()-0.5)*0.5}); }
+function animateStars(){ ctx.clearRect(0,0,w,h); ctx.fillStyle="white"; stars.forEach(s=>{ ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill(); s.x+=s.dx; s.y+=s.dy; if(s.x<0)s.x=w; if(s.x>w)s.x=0; if(s.y<0)s.y=h; if(s.y>h)s.y=0; }); requestAnimationFrame(animateStars); }
+animateStars();
+window.addEventListener('resize',()=>{ w=canvas.width=window.innerWidth; h=canvas.height=window.innerHeight; });
 </script>
+<div id="top-left-string">✨ CTF  ✨</div>
 </head>
 <body>
 <div id="nav">
