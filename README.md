@@ -3,7 +3,8 @@
 Welcome to the **CTF Scoreboard**! This platform displays real-time rankings for participants in Capture The Flag (CTF) challenges.
 
 🔗 **Live Scoreboard:** [https://aabidak.github.io/CTF-scoreboard/](https://aabidak.github.io/CTF-scoreboard/)
-🔗 **Challenges:** [https://github.com/Aabidak/CaptureTheFlag](https://github.com/Aabidak/CaptureTheFlag)     
+
+🔗 **Challenges:** [https://github.com/Aabidak/CaptureTheFlag/](https://github.com/Aabidak/CaptureTheFlag/)     
 ---
 ## 🚀 Features
 
