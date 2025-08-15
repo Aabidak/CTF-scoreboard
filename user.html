@@ -10,10 +10,58 @@
     padding: 0;
     font-family: "Courier New", monospace;
     color: #0ff;
-    overflow-y: auto;
-    height: 100vh;
     background: black;
-    position: relative;
+    overflow-y: auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #nav {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    z-index: 2;
+  }
+  #nav a {
+    margin-left: 20px;
+    color: #f0f;
+    text-decoration: none;
+    font-weight: bold;
+  }
+
+  h1 {
+    text-align: center;
+    color: #f0f;
+    margin-top: 60px;
+  }
+
+  #stats {
+    max-width: 900px;
+    width: 90%;
+    margin-top: 20px;
+    overflow-y: auto;
+    font-size: 20px;
+  }
+
+  .challenge {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 12px;
+    border-bottom: 1px solid #0ff;
+  }
+
+  .challenge-name { flex: 2; }
+  .challenge-points { flex: 1; text-align: center; }
+  .challenge-success { flex: 1; text-align: center; }
+  .challenge-failed { flex: 1; text-align: center; }
+
+  #overall {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 22px;
+    font-weight: bold;
   }
 
   canvas#stars {
@@ -24,148 +72,74 @@
     height: 100%;
     z-index: -1;
   }
-
-  #by-text {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    font-weight: bold;
-    color: white;
-    animation: blink 1.2s infinite;
-  }
-
-  @keyframes blink {
-    0%, 50%, 100% { opacity: 1; }
-    25%, 75% { opacity: 0; }
-  }
-
-  #nav {
-    position: absolute;
-    top: 10px;
-    right: 20px;
-    z-index: 2;
-  }
-
-  #nav a {
-    margin-left: 20px;
-    color: #f0f;
-    text-decoration: none;
-    font-weight: bold;
-  }
-
-  h1 { text-align: center; color: #f0f; margin-top: 60px; }
-
-  #stats {
-    max-width: 900px;
-    margin: 20px auto;
-    overflow-x: auto;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    text-align: center;
-  }
-
-  th, td {
-    padding: 8px;
-    border: 1px solid #0ff;
-  }
-
-  th { color: gold; }
-  td { color: #0ff; }
-
-  #overall {
-    margin-top: 20px;
-    font-size: 1.2em;
-    text-align: center;
-    font-weight: bold;
-  }
 </style>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCkblbbA7iZmiGr617-KZB8Yd3H3a2Aq4M",
-  authDomain: "ctfscoreboard-3af1b.firebaseapp.com",
-  projectId: "ctfscoreboard-3af1b"
-};
-
+const firebaseConfig = { apiKey:"AIzaSyCkblbbA7iZmiGr617-KZB8Yd3H3a2Aq4M", authDomain:"ctfscoreboard-3af1b.firebaseapp.com", projectId:"ctfscoreboard-3af1b" };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
 let currentUser = null;
-onAuthStateChanged(auth, (user) => {
-  if (!user || !user.email.endsWith("@player.local")) {
-    window.location.href = "login.html";
-    return;
-  }
-  currentUser = user;
+onAuthStateChanged(auth, (u)=>{
+  if(!u || !u.email.endsWith("@player.local")) window.location.href="login.html";
+  currentUser = u;
   loadProfile();
 });
 
-window.logout = function() {
-  signOut(auth).then(() => window.location.href = "login.html");
+window.logout = async function() {
+  await signOut(auth);
+  window.location.href="login.html";
 }
 
-// Map of challenge max points
-const maxPoints = {
-  "ToP3erVices": 100, "cd": 100, "EcH0System": 200, "find": 50, "pwd": 50,
-  "mkdir": 50, "Ra1nF0resT": 300, "H1dd2nGH0ST": 200, "DEcrypt": 100, "cat": 50,
-  "rm": 50, "Pe3miss1on": 100, "grep": 50, "Time1sToLess": 300, "mv": 50,
-  "cp": 50, "Secre1Flag": 100, "ls": 50, "whoami": 50, "1amZ1pEd": 100
-};
-
-async function loadProfile() {
+async function loadProfile(){
+  if(!currentUser) return;
   const snap = await getDocs(collection(db,"scores"));
   const challenges = {};
-
-  let totalPoints = 0;
-  let totalMaxPoints = 0;
-
   snap.forEach(doc => {
     const d = doc.data();
-    if (d.uid === currentUser.uid) {
-      if (!challenges[d.challenge]) challenges[d.challenge] = 0;
-      challenges[d.challenge] += d.points; // accumulate points for repeated submissions
+    if(d.uid === currentUser.uid){
+      if(!challenges[d.challenge]){
+        challenges[d.challenge] = { points:0, success:0, failed:0 };
+      }
+      challenges[d.challenge].points += d.points;
+      if(d.points>0) challenges[d.challenge].success += 1;
+      else challenges[d.challenge].failed += 1;
     }
   });
 
-  let tableHTML = `<table>
-    <tr>
-      <th>Challenge</th>
-      <th>Points</th>
-      <th>Success %</th>
-      <th>Failed %</th>
-    </tr>`;
+  const statsDiv = document.getElementById('stats');
+  statsDiv.innerHTML = '';
+  let totalPoints = 0, totalAttempts = 0, totalFails = 0;
 
-  for (let [ch, pts] of Object.entries(challenges)) {
-    let max = maxPoints[ch] || 100;
-    let success = ((pts / max) * 100).toFixed(2);
-    let failed = (100 - success).toFixed(2);
+  for(const [name, data] of Object.entries(challenges)){
+    totalPoints += data.points;
+    totalAttempts += data.success;
+    totalFails += data.failed;
 
-    totalPoints += pts;
-    totalMaxPoints += max;
-
-    tableHTML += `<tr>
-      <td>${ch}</td>
-      <td>${pts}</td>
-      <td>${success}%</td>
-      <td>${failed}%</td>
-    </tr>`;
+    const div = document.createElement('div');
+    div.className = 'challenge';
+    div.innerHTML = `
+      <div class="challenge-name">${name}</div>
+      <div class="challenge-points">${data.points}</div>
+      <div class="challenge-success">${((data.success/(data.success+data.failed))*100).toFixed(1)}%</div>
+      <div class="challenge-failed">${data.failed}</div>
+    `;
+    statsDiv.appendChild(div);
   }
 
-  tableHTML += `</table>`;
-  document.getElementById('stats').innerHTML = tableHTML;
-  const overall = totalMaxPoints ? ((totalPoints / totalMaxPoints) * 100).toFixed(2) : 0;
-  document.getElementById('overall').textContent = `Overall Success Rate: ${overall}%`;
+  const overallDiv = document.createElement('div');
+  overallDiv.id = 'overall';
+  const successRate = totalAttempts+totalFails>0 ? ((totalAttempts/(totalAttempts+totalFails))*100).toFixed(2) : 0;
+  overallDiv.textContent = `Total Points: ${totalPoints} | Success Rate: ${successRate}% | Failed Attempts: ${totalFails}`;
+  statsDiv.appendChild(overallDiv);
 }
 
 // Starfield background
-window.onload = function() {
+window.onload = function(){
   const canvas = document.createElement('canvas');
   canvas.id = 'stars';
   document.body.appendChild(canvas);
@@ -174,32 +148,26 @@ window.onload = function() {
   canvas.height = window.innerHeight;
 
   const stars = [];
-  for (let i = 0; i < 150; i++) {
-    stars.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, r: Math.random()*1.5, opacity: Math.random()});
+  for(let i=0;i<150;i++){
+    stars.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, r:Math.random()*1.5, opacity:Math.random()});
   }
 
-  function draw() {
-    ctx.fillStyle = 'black';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    for (let s of stars) {
+  function draw(){
+    ctx.fillStyle='black';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    for(let s of stars){
       ctx.beginPath();
-      ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
-      ctx.fillStyle = `rgba(255,255,255,${s.opacity})`;
+      ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(255,255,255,${s.opacity})`;
       ctx.fill();
       s.opacity += (Math.random()-0.5)*0.05;
-      if (s.opacity < 0) s.opacity = 0;
-      if (s.opacity > 1) s.opacity = 1;
+      if(s.opacity<0) s.opacity=0;
+      if(s.opacity>1) s.opacity=1;
     }
     requestAnimationFrame(draw);
   }
   draw();
-
-  // blinking BY Cyb3rMaF1a text
-  const byText = document.createElement('div');
-  byText.id = 'by-text';
-  byText.textContent = 'BY Cyb3rMaF1a';
-  document.body.appendChild(byText);
-};
+}
 </script>
 </head>
 <body>
@@ -209,8 +177,7 @@ window.onload = function() {
   <a href="#" onclick="logout()">Logout</a>
 </div>
 
-<h1>${currentUser ? currentUser.displayName : ''} Profile</h1>
+<h1>User Profile</h1>
 <div id="stats"></div>
-<div id="overall"></div>
 </body>
 </html>
