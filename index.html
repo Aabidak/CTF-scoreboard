@@ -5,74 +5,63 @@
 <title>CTF Flag Submission</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  /* Body & Background */
   body { 
-    background:#000 url('imag.png') no-repeat center center fixed; 
-    background-size:cover; 
-    color:#0ff; 
-    font-family:"Courier New", monospace; 
-    display:flex; 
-    flex-direction:column; 
-    align-items:center; 
+    margin:0;
     padding:30px; 
+    font-family:"Courier New", monospace;
+    display:flex; flex-direction:column; align-items:center; 
+    background:#000; color:#0ff; overflow-x:hidden;
   }
 
-  /* Creator string top-left ghost-house bulb effect */
-  #creator {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    font-size: 16px; /* medium */
-    color: white;
+  /* Blinking star background using canvas */
+  canvas#stars { 
+    position:fixed; 
+    top:0; left:0; width:100%; height:100%; 
+    z-index:-1; 
+    background:#000;
   }
+
+  /* Creator neon light top-left */
+  #creator {
+    position:absolute; top:10px; left:10px;
+    font-size:16px; color:#fff;
+    text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #fff;
+    opacity:1;
+  }
+
   @keyframes flicker {
     0%,100% { opacity: 1; }
-    10% { opacity: 0.3; }
+    10% { opacity: 0.2; }
     20% { opacity: 0.8; }
     30% { opacity: 0.2; }
     40% { opacity: 0.9; }
-    50% { opacity: 0.4; }
+    50% { opacity: 0.3; }
     60% { opacity: 1; }
-    70% { opacity: 0.3; }
+    70% { opacity: 0.2; }
     80% { opacity: 0.8; }
     90% { opacity: 0.2; }
   }
 
   /* Headers */
-  h1,h2,h3 { color:#ff69b4; text-align:center; } /* pinkish headers */
-  h2 { font-size: 1.5em; }
-  h3 { font-size: 1.2em; }
+  h1,h2,h3 { text-align:center; color:#ff69b4; } 
+  h2 { font-size:1.5em; } 
+  h3 { font-size:1.2em; }
 
-  /* Inputs & buttons */
+  /* Inputs & Buttons */
   input, button { 
-    font-size:18px; 
-    margin:10px; 
-    padding:10px; 
-    border:1px solid #0ff; 
-    background:#111; 
-    color:#0ff; 
-    border-radius:10px; 
+    font-size:18px; margin:10px; padding:10px; border:1px solid #0ff; 
+    background:#111; color:#0ff; border-radius:10px; 
   }
   button { cursor:pointer; font-weight:700; }
 
-  /* Flag section */
-  #flag-section { margin-top:30px; width:min(520px, 92vw); }
+  #flag-section { margin-top:30px; width:min(520px,92vw); }
 
   /* Scoreboard */
   #scoreboard { 
-    margin-top:20px; 
-    list-style:none; 
-    padding:0; 
-    width:min(420px, 92vw); 
-    max-height:400px; 
-    overflow-y:auto; 
+    margin-top:20px; list-style:none; padding:0; width:min(420px,92vw); 
+    max-height:400px; overflow-y:auto; 
   }
-  #scoreboard li { 
-    padding:6px 0; 
-    border-bottom:1px solid cyan; 
-    transition:all 0.5s ease; 
-    color: #ff69b4; /* default pink */
-  }
+  #scoreboard li { padding:6px 0; border-bottom:1px solid cyan; color:#ff69b4; transition:all 0.5s ease; }
   #scoreboard li.top { color: gold; font-weight:bold; }
   #scoreboard li.new { background:rgba(0,255,255,0.2); }
 
@@ -91,7 +80,6 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// SHA256 helper
 async function sha256(text){
   const enc = new TextEncoder().encode(text);
   const buf = await crypto.subtle.digest('SHA-256', enc);
@@ -106,13 +94,11 @@ onAuthStateChanged(auth, (u) => {
   loadScores();
 });
 
-// Logout
 window.logout = async function(){
   await signOut(auth);
   window.location.href="login.html";
 };
 
-// Flag submission
 window.submitFlag = async function() {
   if(!currentUser){ alert("Not logged in"); return; }
   const challenge = document.getElementById('challenge').value.trim();
@@ -127,7 +113,6 @@ window.submitFlag = async function() {
     const hash = await sha256(flagInput);
     if (hash !== (docData.flagHash || "")){ alert("❌ Wrong flag!"); return; }
 
-    // prevent duplicates
     const prev = await getDocs(query(collection(db,"scores"), where("uid","==",currentUser.uid), where("challenge","==",challenge)));
     if(!prev.empty){ alert("⚠ Already submitted"); return; }
 
@@ -145,7 +130,6 @@ window.submitFlag = async function() {
   document.getElementById('flag').value="";
 };
 
-// Load scoreboard
 async function loadScores(newChallenge=null){
   const ul = document.getElementById('scoreboard'); 
   ul.innerHTML='';
@@ -164,10 +148,36 @@ async function loadScores(newChallenge=null){
   });
 }
 
-// Flicker effect for creator
-setTimeout(() => {
-  document.getElementById('creator').style.animation = "flicker 1.5s infinite";
-}, 2000);
+// Neon flicker for creator
+setTimeout(() => { document.getElementById('creator').style.animation = "flicker 1.5s infinite"; }, 2000);
+
+// Star background canvas
+window.onload = function() {
+  const canvas = document.createElement('canvas');
+  canvas.id='stars';
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  let w=canvas.width=window.innerWidth;
+  let h=canvas.height=window.innerHeight;
+
+  const stars = [];
+  for(let i=0;i<200;i++){
+    stars.push({x:Math.random()*w, y:Math.random()*h, r:Math.random()*1.5, blink:Math.random()});
+  }
+
+  function animate(){
+    ctx.clearRect(0,0,w,h);
+    for(let s of stars){
+      s.blink += 0.02;
+      const alpha = 0.5 + 0.5*Math.sin(s.blink*2*Math.PI);
+      ctx.fillStyle=`rgba(255,255,255,${alpha})`;
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,2*Math.PI); ctx.fill();
+    }
+    requestAnimationFrame(animate);
+  }
+  animate();
+  window.addEventListener('resize',()=>{ w=canvas.width=window.innerWidth; h=canvas.height=window.innerHeight; });
+};
 
 </script>
 </head>
@@ -194,3 +204,4 @@ setTimeout(() => {
 <ul id="scoreboard"></ul>
 </body>
 </html>
+
