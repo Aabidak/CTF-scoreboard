@@ -22,17 +22,20 @@
     top:0; left:0; 
     z-index:-1; 
   }
-  #top-left-string {
-    position:absolute; 
-    top:10px; left:10px; 
-    font-size:20px; 
-    color:#ff0; 
-    font-weight:bold; 
+  /* Top blinking string - centered horizontally */
+  #top-string {
+    position:absolute;
+    top:10px;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:36px;
+    color:#fff;
+    font-weight:bold;
     font-family:"Courier New", monospace;
-    text-shadow:0 0 10px #ff0, 0 0 20px #ff0;
-    animation: blink 1s infinite;
+    text-shadow:0 0 5px #fff, 0 0 10px #fff, 0 0 15px #fff;
+    animation: houseBlink 1.2s infinite;
   }
-  @keyframes blink { 
+  @keyframes houseBlink { 
     0%,50%,100% { opacity:1; } 
     25%,75% { opacity:0.2; } 
   }
@@ -53,51 +56,111 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebas
 import { getFirestore, collection, addDoc, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
-// --- Firebase config unchanged ---
 const firebaseConfig = { apiKey:"AIzaSyCkblbbA7iZmiGr617-KZB8Yd3H3a2Aq4M", authDomain:"ctfscoreboard-3af1b.firebaseapp.com", projectId:"ctfscoreboard-3af1b" };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// SHA256, auth, flag submission, scoreboard logic unchanged
-async function sha256(text){ const enc=new TextEncoder().encode(text); const buf=await crypto.subtle.digest('SHA-256',enc); return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join(''); }
-let currentUser=null;
-onAuthStateChanged(auth,(u)=>{ if(!u||!u.email||!u.email.endsWith("@player.local")){ window.location.href="login.html"; return; } currentUser=u; document.getElementById('nickname-display').textContent=u.displayName||(u.email.split("@")[0]); loadScores(); });
-window.logout=async function(){ await signOut(auth); window.location.href="login.html"; };
-window.submitFlag=async function(){ const challenge=document.getElementById('challenge').value.trim(); const flagInput=document.getElementById('flag').value.trim(); if(!currentUser){ alert("Not logged in"); return;} if(!challenge||!flagInput){ alert("Both fields required"); return;} try{ const q1=query(collection(db,"challenges"),where("name","==",challenge)); const snap=await getDocs(q1); if(snap.empty){ alert("❌ Challenge not found"); return;} const docData=snap.docs[0].data(); const hash=await sha256(flagInput); if(hash!==(docData.flagHash||"")){ alert("❌ Wrong flag!"); return;} const prev=await getDocs(query(collection(db,"scores"),where("uid","==",currentUser.uid),where("challenge","==",challenge))); if(!prev.empty){ alert("⚠ Already submitted"); return;} const pts=docData.points||100; await addDoc(collection(db,"scores"),{ uid:currentUser.uid, nickname:currentUser.displayName||(currentUser.email.split("@")[0]), challenge, points:pts, timestamp:new Date() }); alert("✅ Correct! "+pts+" pts"); loadScores(challenge); }catch(e){alert("Error: "+e.message);} document.getElementById('challenge').value=""; document.getElementById('flag').value=""; };
-async function loadScores(newChallenge=null){ const ul=document.getElementById('scoreboard'); ul.innerHTML=''; const snap=await getDocs(query(collection(db,"scores"),orderBy("timestamp","asc"))); const scores={}; snap.forEach(doc=>{ const d=doc.data(); scores[d.nickname]=(scores[d.nickname]||0)+d.points; }); const sorted=Object.entries(scores).sort((a,b)=>b[1]-a[1]); sorted.forEach(([nick,pts],idx)=>{ const li=document.createElement('li'); li.textContent=`${idx+1}. ${nick} : ${pts} pts`; if(idx===0) li.classList.add('top'); if(currentUser&&nick===(currentUser.displayName||(currentUser.email.split("@")[0]))&&newChallenge) li.classList.add('new'); ul.appendChild(li); if(currentUser&&nick===(currentUser.displayName||(currentUser.email.split("@")[0]))&&newChallenge) setTimeout(()=>li.classList.remove('new'),1500); }); }
-
-// --- Galaxy background with bright stars ---
-const canvas=document.createElement('canvas');
-document.body.appendChild(canvas);
-const ctx=canvas.getContext('2d');
-let w=canvas.width=window.innerWidth, h=canvas.height=window.innerHeight;
-const stars=[];
-for(let i=0;i<300;i++){ stars.push({x:Math.random()*w, y:Math.random()*h, r:Math.random()*2+0.5, dx:(Math.random()-0.5)*0.5, dy:(Math.random()-0.5)*0.5, alpha:Math.random()}); }
-
-function animateStars(){
-  ctx.fillStyle="black";
-  ctx.fillRect(0,0,w,h);
-  stars.forEach(s=>{
-    ctx.beginPath();
-    ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
-    ctx.fillStyle=`rgba(255,255,255,${s.alpha})`;
-    ctx.fill();
-    s.alpha += (Math.random()-0.5)*0.05;
-    if(s.alpha<0) s.alpha=0;
-    if(s.alpha>1) s.alpha=1;
-    s.x+=s.dx; s.y+=s.dy;
-    if(s.x<0) s.x=w; if(s.x>w) s.x=0;
-    if(s.y<0) s.y=h; if(s.y>h) s.y=0;
-  });
-  requestAnimationFrame(animateStars);
+async function sha256(text){
+  const enc = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
-animateStars();
-window.addEventListener('resize',()=>{ w=canvas.width=window.innerWidth; h=canvas.height=window.innerHeight; });
+
+let currentUser = null;
+onAuthStateChanged(auth, (u) => {
+  if(!u || !u.email || !u.email.endsWith("@player.local")) { window.location.href="login.html"; return; }
+  currentUser = u;
+  document.getElementById('nickname-display').textContent = u.displayName || (u.email.split("@")[0]);
+  loadScores();
+});
+
+window.logout = async function(){
+  await signOut(auth);
+  window.location.href="login.html";
+};
+
+window.submitFlag = async function() {
+  if(!currentUser){ alert("Not logged in"); return; }
+  const challenge = document.getElementById('challenge').value.trim();
+  const flagInput = document.getElementById('flag').value.trim();
+  if(!challenge || !flagInput){ alert("Both fields required"); return; }
+
+  try {
+    const q1 = query(collection(db,"challenges"), where("name","==",challenge));
+    const snap = await getDocs(q1);
+    if (snap.empty){ alert("❌ Challenge not found"); return; }
+    const docData = snap.docs[0].data();
+    const hash = await sha256(flagInput);
+    if (hash !== (docData.flagHash || "")){ alert("❌ Wrong flag!"); return; }
+
+    // prevent duplicates
+    const prev = await getDocs(query(collection(db,"scores"), where("uid","==",currentUser.uid), where("challenge","==",challenge)));
+    if(!prev.empty){ alert("⚠ Already submitted"); return; }
+
+    const pts = docData.points || 100;
+    await addDoc(collection(db,"scores"), {
+      uid: currentUser.uid,
+      nickname: currentUser.displayName || (currentUser.email.split("@")[0]),
+      challenge, points: pts, timestamp: new Date()
+    });
+    alert("✅ Correct! +" + pts + " pts");
+    loadScores(challenge);
+  } catch(e){ alert("Error: "+e.message); }
+
+  document.getElementById('challenge').value="";
+  document.getElementById('flag').value="";
+};
+
+async function loadScores(newChallenge=null){
+  const ul = document.getElementById('scoreboard'); 
+  ul.innerHTML='';
+  const snap = await getDocs(query(collection(db,"scores"), orderBy("timestamp","asc")));
+  const scores = {};
+  snap.forEach(doc=>{ const d=doc.data(); scores[d.nickname]=(scores[d.nickname]||0)+d.points; });
+
+  const sorted = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+  sorted.forEach(([nick,pts],idx)=>{
+    const li = document.createElement('li'); 
+    li.textContent = `${idx+1}. ${nick} : ${pts} pts`;
+    if(idx===0) li.classList.add('top');
+    if(currentUser && nick===(currentUser.displayName || (currentUser.email.split("@")[0])) && newChallenge) li.classList.add('new');
+    ul.appendChild(li);
+    if(currentUser && nick===(currentUser.displayName || (currentUser.email.split("@")[0])) && newChallenge) setTimeout(()=>li.classList.remove('new'),1500);
+  });
+}
+
+// Galaxy star background
+window.onload = function(){
+  const canvas = document.createElement('canvas');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  const stars = [];
+  for(let i=0;i<200;i++){
+    stars.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, r:Math.random()*1.5+0.5, dx:Math.random()*0.2-0.1, dy:Math.random()*0.2-0.1});
+  }
+  function animate(){
+    ctx.fillStyle="rgba(0,0,0,0.1)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    stars.forEach(s=>{
+      ctx.beginPath();
+      ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle="#fff";
+      ctx.fill();
+      s.x+=s.dx; s.y+=s.dy;
+      if(s.x<0) s.x=canvas.width; if(s.x>canvas.width) s.x=0;
+      if(s.y<0) s.y=canvas.height; if(s.y>canvas.height) s.y=0;
+    });
+    requestAnimationFrame(animate);
+  }
+  animate();
+};
 </script>
-<div id="top-left-string">By Cybe3MaF1a</div>
 </head>
 <body>
+<div id="top-string">By Cybe3MaF1a</div>
 <div id="nav">
   <a href="leaderboard.html">Leaderboard</a>
   <a href="user.html">Profile</a>
