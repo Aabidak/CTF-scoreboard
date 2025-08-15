@@ -6,24 +6,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 html, body {
-  margin: 0; padding: 0; height: 100%;
-  font-family: "Courier New", monospace;
-  color: #0ff;
-  text-align: center;
-  overflow: hidden;
-  background: #000;
+  margin:0; padding:0; height:100%;
+  font-family:"Courier New", monospace;
+  overflow:hidden;
+  background:#000;
+  color:#0ff;
 }
-#starfield { position: fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
+#starfield { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
+#cyber-text {
+  position:absolute; top:10px; left:10px; font-size:1.5rem;
+  color:#fff; z-index:2; font-weight:bold; text-shadow:0 0 10px #fff;
+}
 #content {
-  position: relative; z-index:1;
+  position:relative; z-index:1;
   display:flex; flex-direction:column;
   align-items:center; justify-content:center;
   min-height:100vh; padding:30px;
+  color:#0ff;
 }
-h1 { font-size:3rem; color:#f0f; text-shadow:0 0 15px #f0f; margin-bottom:10px;}
-h2 { font-size:2.2rem; color:#f0f; margin:20px 0 10px 0;}
-h3 { font-size:1.8rem; color:#f0f; margin-bottom:20px;}
-input, button { font-size:20px; margin:10px; padding:12px 20px; border:1px solid #0ff; background:rgba(17,17,17,0.85); color:#0ff; border-radius:10px; text-align:center;}
+h1 { font-size:3rem; text-shadow:0 0 15px #f0f; margin-bottom:10px;}
+h2 { font-size:2.2rem; margin:20px 0 10px 0;}
+h3 { font-size:1.8rem; margin-bottom:20px;}
+input, button {
+  font-size:20px; margin:10px; padding:12px 20px;
+  border:1px solid #0ff; background:rgba(17,17,17,0.85);
+  color:#0ff; border-radius:10px; text-align:center;
+}
 button { cursor:pointer; font-weight:700; }
 #flag-section { width:min(520px,92vw); display:flex; flex-direction:column; align-items:center; }
 #scoreboard { margin-top:20px; list-style:none; padding:0; width:min(420px,92vw); text-align:center; }
@@ -31,89 +39,16 @@ button { cursor:pointer; font-weight:700; }
 #scoreboard li.top { color: gold; font-weight:bold; }
 #scoreboard li.new { background: rgba(0,255,255,0.2); }
 #nav { position:absolute; top:10px; width:100%; text-align:center; z-index:1; }
-#nav a { margin:0 20px; color:#f0f; text-decoration:none; font-weight:bold; font-size:1.2rem; }
+#nav a { margin:0 20px; text-decoration:none; font-weight:bold; font-size:1.2rem; color:#0ff; text-shadow:0 0 5px #0ff; }
 </style>
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-
-const firebaseConfig = { apiKey:"AIzaSyCkblbbA7iZmiGr617-KZB8Yd3H3a2Aq4M", authDomain:"ctfscoreboard-3af1b.firebaseapp.com", projectId:"ctfscoreboard-3af1b" };
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-
-async function sha256(text){
-  const enc = new TextEncoder().encode(text);
-  const buf = await crypto.subtle.digest('SHA-256', enc);
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-
-let currentUser = null;
-onAuthStateChanged(auth, (u) => {
-  if(!u || !u.email || !u.email.endsWith("@player.local")) { window.location.href="login.html"; return; }
-  currentUser = u;
-  document.getElementById('nickname-display').textContent = u.displayName || (u.email.split("@")[0]);
-  loadScores();
-});
-
-window.logout = async function(){
-  await signOut(auth);
-  window.location.href="login.html";
-};
-
-window.submitFlag = async function() {
-  if(!currentUser){ alert("Not logged in"); return; }
-  const challenge = document.getElementById('challenge').value.trim();
-  const flagInput = document.getElementById('flag').value.trim();
-  if(!challenge || !flagInput){ alert("Both fields required"); return; }
-
-  try {
-    const q1 = query(collection(db,"challenges"), where("name","==",challenge));
-    const snap = await getDocs(q1);
-    if (snap.empty){ alert("❌ Challenge not found"); return; }
-    const docData = snap.docs[0].data();
-    const hash = await sha256(flagInput);
-    if (hash !== (docData.flagHash || "")){ alert("❌ Wrong flag!"); return; }
-
-    const prev = await getDocs(query(collection(db,"scores"), where("uid","==",currentUser.uid), where("challenge","==",challenge)));
-    if(!prev.empty){ alert("⚠ Already submitted"); return; }
-
-    const pts = docData.points || 100;
-    await addDoc(collection(db,"scores"), {
-      uid: currentUser.uid,
-      nickname: currentUser.displayName || (currentUser.email.split("@")[0]),
-      challenge, points: pts, timestamp: new Date()
-    });
-    alert("✅ Correct! +" + pts + " pts");
-    loadScores(challenge);
-  } catch(e){ alert("Error: "+e.message); }
-
-  document.getElementById('challenge').value="";
-  document.getElementById('flag').value="";
-};
-
-async function loadScores(newChallenge=null){
-  const ul = document.getElementById('scoreboard'); 
-  ul.innerHTML='';
-  const snap = await getDocs(query(collection(db,"scores"), orderBy("timestamp","asc")));
-  const scores = {};
-  snap.forEach(doc=>{ const d=doc.data(); scores[d.nickname]=(scores[d.nickname]||0)+d.points; });
-
-  const sorted = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
-  sorted.forEach(([nick,pts],idx)=>{
-    const li = document.createElement('li'); 
-    li.textContent = `${idx+1}. ${nick} : ${pts} pts`;
-    if(idx===0) li.classList.add('top');
-    if(currentUser && nick===(currentUser.displayName || (currentUser.email.split("@")[0])) && newChallenge) li.classList.add('new');
-    ul.appendChild(li);
-    if(currentUser && nick===(currentUser.displayName || (currentUser.email.split("@")[0])) && newChallenge) setTimeout(()=>li.classList.remove('new'),1500);
-  });
-}
+// Firebase setup omitted for brevity
 </script>
 </head>
 <body>
 <canvas id="starfield"></canvas>
+<div id="cyber-text">BY Cyb3rMaF1a</div>
+
 <div id="content">
   <div id="nav">
     <a href="leaderboard.html">Leaderboard</a>
@@ -140,29 +75,19 @@ let width = canvas.width = window.innerWidth;
 let height = canvas.height = window.innerHeight;
 window.addEventListener('resize', () => { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; });
 
-// Starfield
+// Stars array
 const stars = [];
-for(let i=0;i<250;i++){
-  stars.push({x:Math.random()*width, y:Math.random()*height, r:Math.random()*1.5, opacity:Math.random()});
+for(let i=0;i<400;i++){
+  stars.push({x:Math.random()*width, y:Math.random()*height, r:Math.random()*2+0.5, blinkSpeed: Math.random()*0.05 + 0.02, opacity: Math.random()});
 }
 
-// Hacker laptop character
-let hacker = {x:-80, y:height/2, speed:2, width:50, height:50};
-
-// Draw laptop hoodie hacker
-function drawHacker(h){
-  // body (white laptop)
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(h.x, h.y, h.width, h.height);
-  // hoodie (red)
-  ctx.fillStyle = '#f00';
-  ctx.beginPath();
-  ctx.arc(h.x+h.width/2, h.y, h.width/2, Math.PI, 0);
-  ctx.fill();
-  // optional: screen visor
-  ctx.fillStyle = '#00f';
-  ctx.fillRect(h.x+h.width*0.15, h.y+h.height*0.15, h.width*0.7, h.height*0.3);
+// Top-left blinking text effect
+const cyberText = document.getElementById('cyber-text');
+function blinkText(){
+  cyberText.style.opacity = Math.random()>0.5 ? 1 : 0.2;
+  setTimeout(blinkText, 200 + Math.random()*300);
 }
+blinkText();
 
 // Animation loop
 function animate(){
@@ -171,22 +96,14 @@ function animate(){
 
   // Draw stars
   for(let s of stars){
-    s.opacity += (Math.random()-0.5)*0.05;
-    if(s.opacity<0)s.opacity=0;
-    if(s.opacity>1)s.opacity=1;
+    s.opacity += s.blinkSpeed * (Math.random()>0.5?1:-1);
+    if(s.opacity>1) s.opacity=1;
+    if(s.opacity<0) s.opacity=0;
     ctx.beginPath();
     ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
     ctx.fillStyle=`rgba(255,255,255,${s.opacity})`;
     ctx.fill();
   }
-
-  // Move and draw hacker
-  hacker.x += hacker.speed;
-  if(hacker.x > width + 100){
-    hacker.x = -80;
-    hacker.y = Math.random()*(height-60);
-  }
-  drawHacker(hacker);
 
   requestAnimationFrame(animate);
 }
