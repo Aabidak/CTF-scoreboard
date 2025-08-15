@@ -22,17 +22,17 @@
     top:0; left:0; 
     z-index:-1; 
   }
-  /* Top blinking string - centered horizontally */
+
+  /* Top-left blinking string - old house bulb style */
   #top-string {
     position:absolute;
     top:10px;
-    left:50%;
-    transform:translateX(-50%);
-    font-size:36px;
-    color:#fff;
+    left:10px;
+    font-size:28px;
+    color:#fff8dc; /* warm white/yellowish */
     font-weight:bold;
     font-family:"Courier New", monospace;
-    text-shadow:0 0 5px #fff, 0 0 10px #fff, 0 0 15px #fff;
+    text-shadow:0 0 3px #fff, 0 0 7px #fff, 0 0 10px #fff8dc;
     animation: houseBlink 1.2s infinite;
   }
   @keyframes houseBlink { 
@@ -40,11 +40,11 @@
     25%,75% { opacity:0.2; } 
   }
 
-  h1,h3,h2 { color:#f0f; }
+  h1,h3,h2 { color:#f0f; text-align:center; }
   input, button { font-size:18px; margin:10px; padding:10px; border:1px solid #0ff; background:#111; color:#0ff; border-radius:10px; }
   button { cursor:pointer; font-weight:700; }
-  #flag-section { margin-top:30px; width:min(520px, 92vw); }
-  #scoreboard { margin-top:20px; list-style:none; padding:0; width:min(420px, 92vw); }
+  #flag-section { margin-top:30px; width:min(520px, 92vw); text-align:center; }
+  #scoreboard { margin-top:20px; list-style:none; padding:0; width:min(420px, 92vw); text-align:center; }
   #scoreboard li { padding:6px 0; border-bottom:1px solid #0ff; transition:all 0.5s ease; }
   #scoreboard li.top { color:gold; font-weight:bold; }
   #scoreboard li.new { background:rgba(0,255,255,0.2); }
@@ -94,7 +94,6 @@ window.submitFlag = async function() {
     const hash = await sha256(flagInput);
     if (hash !== (docData.flagHash || "")){ alert("❌ Wrong flag!"); return; }
 
-    // prevent duplicates
     const prev = await getDocs(query(collection(db,"scores"), where("uid","==",currentUser.uid), where("challenge","==",challenge)));
     if(!prev.empty){ alert("⚠ Already submitted"); return; }
 
@@ -178,3 +177,4 @@ window.onload = function(){
 <ul id="scoreboard"></ul>
 </body>
 </html>
+
