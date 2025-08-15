@@ -24,9 +24,9 @@
   /* Creator neon light top-left */
   #creator {
     position:absolute; top:10px; left:10px;
-    font-size:16px; color:#fff;
+    font-size:20px; font-weight:bold;
+    color:#fff;
     text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #fff;
-    opacity:1;
   }
 
   @keyframes flicker {
@@ -148,11 +148,23 @@ async function loadScores(newChallenge=null){
   });
 }
 
-// Neon flicker for creator
-setTimeout(() => { document.getElementById('creator').style.animation = "flicker 1.5s infinite"; }, 2000);
-
-// Star background canvas
+// Creator flicker: stays off 2s, then flickers quickly
+const creator = document.getElementById('creator');
+function flickerBulb(){
+  creator.style.opacity=0;
+  setTimeout(()=>{
+    let flicks=0;
+    const flickInterval = setInterval(()=>{
+      creator.style.opacity = flicks%2===0?1:0;
+      flicks++;
+      if(flicks>5){ clearInterval(flickInterval); setTimeout(flickerBulb,2000); }
+    },100); // fast flicker
+  },2000);
+}
 window.onload = function() {
+  flickerBulb();
+
+  // Stars canvas
   const canvas = document.createElement('canvas');
   canvas.id='stars';
   document.body.appendChild(canvas);
@@ -204,4 +216,3 @@ window.onload = function() {
 <ul id="scoreboard"></ul>
 </body>
 </html>
-
