@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CTF Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { background:#000 url('image.png') no-repeat center center fixed; background-size:cover; font-family:"Courier New", monospace; color:#0ff; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:24px; }
+  input, button { font-size:18px; margin:10px; padding:10px; border:1px solid #0ff; background:#111; color:#0ff; border-radius:10px; width:min(420px,90vw); }
+  button { cursor:pointer; font-weight:700; }
+  h1,h2 { color:#f0f; }
+  .row { display:flex; gap:10px; align-items:center; }
+  a { color:#f0f; }
+</style>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+const firebaseConfig={apiKey:"AIzaSyCkblbbA7iZmiGr617-KZB8Yd3H3a2Aq4M",authDomain:"ctfscoreboard-3af1b.firebaseapp.com",projectId:"ctfscoreboard-3af1b"};
+const app=initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+onAuthStateChanged(auth, (user) => {
+  if (user && user.email && user.email.endsWith("@player.local")) {
+    window.location.href="index.html";
+  }
+});
+
+window.loginUser = async function(){
+  const username=document.getElementById('username').value.trim();
+  const password=document.getElementById('password').value.trim();
+  if(!username||!password){ alert("All fields required"); return;}
+  const email = `${username}@player.local`; // virtual email
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    window.location.href="index.html";
+  } catch(e){
+    alert("❌ Invalid credentials");
+  }
+}
+</script>
+</head>
+<body>
+<h1>Player Login</h1>
+<input id="username" placeholder="Username">
+<input id="password" type="password" placeholder="Password">
+<button onclick="loginUser()">Login</button>
+<a href="register.html">No account? Register</a> &nbsp;|&nbsp; <a href="admin-login.html">Admin Login</a>
+</body>
+</html>

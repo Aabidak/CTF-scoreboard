@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CTF Register</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { background:#000 url('image.png') no-repeat center center fixed; background-size:cover; font-family:"Courier New", monospace; color:#0ff; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:24px; }
+  input, button { font-size:18px; margin:10px; padding:10px; border:1px solid #0ff; background:#111; color:#0ff; border-radius:10px; width:min(420px,90vw); }
+  button { cursor:pointer; font-weight:700; }
+  h1,h2 { color:#f0f; }
+  a { color:#f0f; }
+</style>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+const firebaseConfig={apiKey:"AIzaSyCkblbbA7iZmiGr617-KZB8Yd3H3a2Aq4M",authDomain:"ctfscoreboard-3af1b.firebaseapp.com",projectId:"ctfscoreboard-3af1b"};
+const app=initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+window.registerUser = async function(){
+  const username=document.getElementById('username').value.trim();
+  const password=document.getElementById('password').value.trim();
+  const rePassword=document.getElementById('repassword').value.trim();
+  if(!username||!password||!rePassword){ alert("All fields required"); return;}
+  if(password!==rePassword){ alert("Passwords do not match"); return; }
+  const email = `${username}@player.local`; // virtual email
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    await updateProfile(cred.user, { displayName: username });
+    try { await addDoc(collection(db, "profiles"), { uid: cred.user.uid, username }); } catch(_){}
+    alert("✅ Registered! Now login.");
+    window.location.href="login.html";
+  } catch(e){
+    alert("Username already exists or weak password.");
+  }
+}
+</script>
+</head>
+<body>
+<h1>Register</h1>
+<input id="username" placeholder="Username">
+<input id="password" type="password" placeholder="Password">
+<input id="repassword" type="password" placeholder="Re-enter Password">
+<button onclick="registerUser()">Register</button>
+<a href="login.html">Already have account? Login</a>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CTF Admin Panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { background:#000 url('image.png') no-repeat center center fixed; background-size:cover; color:#0ff; font-family:"Courier New", monospace; display:flex; flex-direction:column; align-items:center; padding:30px; }
+  h1,h2 { color:#f0f; }
+  input, button { font-size:16px; margin:6px; padding:10px; border:1px solid #0ff; background:#111; color:#0ff; border-radius:10px; }
+  button { cursor:pointer; font-weight:700; }
+  #nav { position:absolute; top:10px; right:20px; }
+  #nav a { margin-left:20px; color:#f0f; text-decoration:none; font-weight:bold; }
+  table { margin-top:20px; border-collapse: collapse; width: min(900px, 95vw); background: rgba(0,0,0,0.6); border-radius:14px; overflow:hidden; }
+  th, td { border:1px solid #0ff; padding:10px; text-align:center; }
+  th { background:#111; }
+  td button { padding:6px 10px; border-radius:8px; }
+  .muted { color:#7ff; font-size:12px; }
+</style>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCkblbbA7iZmiGr617-KZB8Yd3H3a2Aq4M",
+  authDomain: "ctfscoreboard-3af1b.firebaseapp.com",
+  projectId: "ctfscoreboard-3af1b"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+async function sha256(text){
+  const enc = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// Admin session guard
+async function ensureAdmin(user){
+  if(!user || !user.email || !user.email.endsWith("@admin.local")) return false;
+  // Optional: double check admins collection contains this uid or email (works even with open rules)
+  try {
+    const q = query(collection(db, "admins"), where("email","==",user.email));
+    const snap = await getDocs(q);
+    if (snap.empty) return false;
+  } catch(_) {}
+  return true;
+}
+
+window.logoutAdmin = async function() {
+  await signOut(auth);
+  window.location.href="admin-login.html";
+};
+
+window.addChallenge = async function() {
+  const name = document.getElementById('challengeName').value.trim();
+  const flagPlain = document.getElementById('challengeFlag').value.trim();
+  const points = parseInt(document.getElementById('challengePoints').value.trim());
+  if(!name || !flagPlain || isNaN(points)){ alert("All fields are required!"); return; }
+
+  try {
+    const flagHash = await sha256(flagPlain);
+    await addDoc(collection(db,"challenges"), { name, flagHash, points });
+    alert("✅ Challenge added!");
+    document.getElementById('challengeName').value = "";
+    document.getElementById('challengeFlag').value = "";
+    document.getElementById('challengePoints').value = "";
+    loadChallenges();
+  } catch(e){ alert("Error: "+e.message); }
+};
+
+async function loadChallenges() {
+  const tbody = document.getElementById('challengeList');
+  tbody.innerHTML = '';
+  const snap = await getDocs(collection(db,"challenges"));
+  snap.forEach(docSnap => {
+    const data = docSnap.data();
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input value="${data.name || ''}" data-id="${docSnap.id}" class="name"></td>
+      <td>
+        <input placeholder="Enter new flag to update (optional)" data-id="${docSnap.id}" class="flag">
+        <div class="muted">Stored: SHA-256 hash only</div>
+      </td>
+      <td><input value="${data.points || 0}" type="number" data-id="${docSnap.id}" class="points"></td>
+      <td>
+        <button onclick="updateChallenge('${docSnap.id}')">Update</button>
+        <button onclick="deleteChallenge('${docSnap.id}')">Delete</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+window.updateChallenge = async function(id){
+  const name = document.querySelector(`.name[data-id="${id}"]`).value.trim();
+  const flagNew = document.querySelector(`.flag[data-id="${id}"]`).value.trim();
+  const points = parseInt(document.querySelector(`.points[data-id="${id}"]`).value.trim());
+  if(!name || isNaN(points)){ alert("Name and points required"); return; }
+  const patch = { name, points };
+  if(flagNew) { patch.flagHash = await sha256(flagNew); }
+  try { await updateDoc(doc(db,"challenges",id), patch); alert("✅ Updated!"); loadChallenges(); }
+  catch(e){ alert("Error: "+e.message); }
+};
+
+window.deleteChallenge = async function(id){
+  if(confirm("Delete this challenge?")){
+    try { await deleteDoc(doc(db,"challenges",id)); alert("✅ Deleted!"); loadChallenges(); }
+    catch(e){ alert("Error: "+e.message); }
+  }
+};
+
+onAuthStateChanged(auth, async (user) => {
+  const ok = await ensureAdmin(user);
+  if(!ok){ alert("❌ Unauthorized!"); window.location.href = "admin-login.html"; return; }
+  loadChallenges();
+});
+</script>
+</head>
+<body>
+<div id="nav">
+  <a href="#" onclick="logoutAdmin()">Logout</a>
+</div>
+<h1>🛠 Admin Panel</h1>
+<h2>Add Challenge</h2>
+<input id="challengeName" placeholder="Challenge Name">
+<input id="challengeFlag" placeholder="Flag (plaintext – will be hashed)">
+<input id="challengePoints" type="number" placeholder="Points">
+<button onclick="addChallenge()">Add</button>
+
+<h2>All Challenges</h2>
+<table>
+  <thead>
+    <tr><th>Name</th><th>Flag</th><th>Points</th><th>Actions</th></tr>
+  </thead>
+  <tbody id="challengeList"></tbody>
+</table>
+</body>
+</html>

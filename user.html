@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CTF User Profile</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { background:#000; font-family:"Courier New", monospace; color:#0ff; display:flex; flex-direction:column; align-items:center; padding:30px; font-size:20px; position: relative; overflow: hidden; }
+  h1,h2,h3 { color:#f0f; }
+  #nav { position:absolute; top:10px; right:20px; }
+  #nav a { margin-left:20px; color:#f0f; text-decoration:none; font-weight:bold; }
+  .edge-line { position:absolute; background:#0ff; width:4px; height:4px; animation: swing 2s infinite alternate; }
+  @keyframes swing { 0% { transform: translateY(0) rotate(0deg);} 50% { transform: translateY(10px) rotate(10deg);} 100% { transform: translateY(0) rotate(-10deg);} }
+  #stats { margin-top:50px; text-align:center; }
+</style>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+const firebaseConfig={apiKey:"AIzaSyCkblbbA7iZmiGr617-KZB8Yd3H3a2Aq4M",authDomain:"ctfscoreboard-3af1b.firebaseapp.com",projectId:"ctfscoreboard-3af1b"};
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
+const auth=getAuth(app);
+
+let nickname=""; let uid="";
+onAuthStateChanged(auth, (u)=>{
+  if(!u || !u.email.endsWith("@player.local")){ window.location.href="login.html"; return; }
+  nickname=u.displayName || (u.email.split("@")[0]);
+  uid=u.uid;
+  loadProfile();
+});
+
+window.logout=function(){ signOut(auth).then(()=>window.location.href="login.html"); }
+
+async function loadProfile(){
+    const snap=await getDocs(collection(db,"scores"));
+    let total=0, points=0;
+    const completed=[];
+    snap.forEach(doc=>{
+        const d=doc.data();
+        if(d.uid===uid){
+            total+=1;
+            completed.push(d.challenge);
+            points+=d.points;
+        }
+    });
+    const successRate = total===0 ? 0 : Math.min(100, ((points/(total*100))*100)).toFixed(2);
+    document.getElementById('stats').innerHTML=`<h2>${nickname} Profile</h2>
+    <p>Completed Challenges: ${completed.join(", ") || "None"}</p>
+    <p>Total Points: ${points}</p>
+    <p>Success Rate: ${successRate}%</p>`;
+}
+
+// Animated lines at corners
+window.onload = function(){
+    const edges = [ {top:0, left:0}, {top:0, right:0}, {bottom:0, left:0}, {bottom:0, right:0} ];
+    edges.forEach(pos=>{
+        const div=document.createElement('div');
+        div.className='edge-line';
+        Object.assign(div.style,pos);
+        document.body.appendChild(div);
+    });
+};
+</script>
+</head>
+<body>
+<div id="nav">
+  <a href="index.html">Submit Flag</a>
+  <a href="leaderboard.html">Leaderboard</a>
+  <a href="#" onclick="logout()">Logout</a>
+</div>
+<div id="stats"></div>
+</body>
+</html>
