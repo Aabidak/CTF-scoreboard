@@ -5,24 +5,40 @@
 <title>CTF User Profile</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  body { background:#000; font-family:"Courier New", monospace; color:#0ff; display:flex; flex-direction:column; align-items:center; padding:30px; font-size:20px; position: relative; overflow: hidden; }
-  h1,h2,h3 { color:#f0f; }
-  #nav { position:absolute; top:10px; right:20px; }
-  #nav a { margin-left:20px; color:#f0f; text-decoration:none; font-weight:bold; }
-  .edge-line { position:absolute; background:#0ff; width:4px; height:4px; animation: swing 2s infinite alternate; }
-  @keyframes swing { 0% { transform: translateY(0) rotate(0deg);} 50% { transform: translateY(10px) rotate(10deg);} 100% { transform: translateY(0) rotate(-10deg);} }
-  #stats { margin-top:50px; text-align:center; }
+html, body {
+  margin:0; padding:0; height:100%;
+  font-family:"Courier New", monospace;
+  overflow:hidden;
+  background:#000;
+  color:#0ff;
+  text-align:center;
+}
+#starfield { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
+#cyber-text {
+  position:absolute; top:10px; left:10px; font-size:1.5rem;
+  color:#fff; z-index:2; font-weight:bold; text-shadow:0 0 10px #fff;
+}
+#content { position:relative; z-index:1; padding:30px; }
+h1,h2,h3 { color:#f0f; }
+#nav { position:absolute; top:10px; right:20px; z-index:1; }
+#nav a { margin-left:20px; color:#f0f; text-decoration:none; font-weight:bold; }
+#stats { margin-top:50px; text-align:center; }
+table { margin:20px auto; border-collapse:collapse; width:min(600px,90vw); }
+th, td { border:1px solid #0ff; padding:10px; font-size:1.1rem; color:#0ff; text-align:center; }
+th { background:rgba(255,255,255,0.1); }
+#success-rate { margin-top:20px; font-size:1.3rem; font-weight:bold; }
 </style>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
 const firebaseConfig={apiKey:"AIzaSyCkblbbA7iZmiGr617-KZB8Yd3H3a2Aq4M",authDomain:"ctfscoreboard-3af1b.firebaseapp.com",projectId:"ctfscoreboard-3af1b"};
 const app=initializeApp(firebaseConfig);
 const db=getFirestore(app);
 const auth=getAuth(app);
 
-let nickname=""; let uid="";
+let nickname="", uid="";
 onAuthStateChanged(auth, (u)=>{
   if(!u || !u.email.endsWith("@player.local")){ window.location.href="login.html"; return; }
   nickname=u.displayName || (u.email.split("@")[0]);
@@ -34,32 +50,66 @@ window.logout=function(){ signOut(auth).then(()=>window.location.href="login.htm
 
 async function loadProfile(){
     const snap=await getDocs(collection(db,"scores"));
-    let total=0, points=0;
-    const completed=[];
+    let totalAttempts=0, points=0;
+    const completed = [];
     snap.forEach(doc=>{
         const d=doc.data();
         if(d.uid===uid){
-            total+=1;
-            completed.push(d.challenge);
+            totalAttempts++;
+            completed.push({challenge:d.challenge, points:d.points});
             points+=d.points;
         }
     });
-    const successRate = total===0 ? 0 : Math.min(100, ((points/(total*100))*100)).toFixed(2);
-    document.getElementById('stats').innerHTML=`<h2>${nickname} Profile</h2>
-    <p>Completed Challenges: ${completed.join(", ") || "None"}</p>
-    <p>Total Points: ${points}</p>
-    <p>Success Rate: ${successRate}%</p>`;
+
+    // Assuming max points per challenge = 100
+    const successRate = totalAttempts===0 ? 0 : Math.min(100, ((points/(totalAttempts*100))*100)).toFixed(2);
+
+    // Build table
+    let tableHTML = `<h2>${nickname} Profile</h2>`;
+    if(completed.length===0){
+      tableHTML += `<p>No challenges completed yet.</p>`;
+    } else {
+      tableHTML += `<table><tr><th>Challenge</th><th>Points</th></tr>`;
+      completed.forEach(c=>{ tableHTML += `<tr><td>${c.challenge}</td><td>${c.points}</td></tr>`; });
+      tableHTML += `</table>`;
+    }
+    tableHTML += `<div id="success-rate">Success Rate: ${successRate}%</div>`;
+    document.getElementById('stats').innerHTML = tableHTML;
 }
 
-// Animated lines at corners
+// Stars animation
 window.onload = function(){
-    const edges = [ {top:0, left:0}, {top:0, right:0}, {bottom:0, left:0}, {bottom:0, right:0} ];
-    edges.forEach(pos=>{
-        const div=document.createElement('div');
-        div.className='edge-line';
-        Object.assign(div.style,pos);
-        document.body.appendChild(div);
-    });
+    const canvas = document.createElement('canvas');
+    canvas.id='starfield';
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    let width=canvas.width=window.innerWidth;
+    let height=canvas.height=window.innerHeight;
+    window.addEventListener('resize', ()=>{ width=canvas.width=window.innerWidth; height=canvas.height=window.innerHeight; });
+
+    const stars=[];
+    for(let i=0;i<400;i++) stars.push({x:Math.random()*width, y:Math.random()*height, r:Math.random()*2+0.5, blinkSpeed: Math.random()*0.05 + 0.02, opacity: Math.random()});
+    const cyberText = document.createElement('div');
+    cyberText.id='cyber-text';
+    cyberText.innerText='BY Cyb3rMaF1a';
+    document.body.appendChild(cyberText);
+    function blinkText(){ cyberText.style.opacity = Math.random()>0.5 ? 1 : 0.2; setTimeout(blinkText, 200 + Math.random()*300); }
+    blinkText();
+    function animate(){
+        ctx.fillStyle='#000';
+        ctx.fillRect(0,0,width,height);
+        for(let s of stars){
+            s.opacity += s.blinkSpeed * (Math.random()>0.5?1:-1);
+            if(s.opacity>1) s.opacity=1;
+            if(s.opacity<0) s.opacity=0;
+            ctx.beginPath();
+            ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+            ctx.fillStyle=`rgba(255,255,255,${s.opacity})`;
+            ctx.fill();
+        }
+        requestAnimationFrame(animate);
+    }
+    animate();
 };
 </script>
 </head>
@@ -69,6 +119,9 @@ window.onload = function(){
   <a href="leaderboard.html">Leaderboard</a>
   <a href="#" onclick="logout()">Logout</a>
 </div>
-<div id="stats"></div>
+<div id="content">
+  <div id="stats"></div>
+</div>
 </body>
 </html>
+
