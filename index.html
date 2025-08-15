@@ -5,51 +5,67 @@
 <title>CTF Flag Submission</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  body { 
-    margin:0; padding:30px; font-family:"Courier New", monospace;
-    display:flex; flex-direction:column; align-items:center;
-    background:#000; color:#0ff; overflow-x:hidden;
-  }
-
-  /* Stars background */
-  canvas#stars { 
-    position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1; 
+  html, body {
+    margin:0; padding:0; height:100%;
+    font-family:"Courier New", monospace;
+    overflow:hidden;
     background:#000;
-  }
-
-  /* Old-house flicker for creator only */
-  .flicker {
-    color:#fff;
-    text-shadow:0 0 2px #fff,0 0 5px #fff,0 0 10px #fff;
-    animation: flickerAnim 3s infinite;
-  }
-
-  @keyframes flickerAnim {
-    0%, 100% { text-shadow:0 0 0px #fff; opacity:0.3; }
-    5%, 10% { text-shadow:0 0 5px #fff,0 0 10px #fff; opacity:1; }
-    15%, 20% { text-shadow:0 0 2px #fff,0 0 5px #fff; opacity:0.6; }
-    25%, 30% { text-shadow:0 0 10px #fff,0 0 20px #fff; opacity:1; }
-    50% { text-shadow:0 0 0px #fff; opacity:0.2; }
-  }
-
-  /* Neon effect for headers / submit / scoreboard */
-  .neon {
     color:#0ff;
-    text-shadow:0 0 5px #0ff,0 0 10px #0ff,0 0 20px #0ff;
+    text-align:center;
   }
 
-  input, button { font-size:18px; margin:10px; padding:10px; border:1px solid #0ff; background:#111; color:#0ff; border-radius:10px; }
+  #starfield { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
+  
+  /* Flickering creator text */
+  #creator {
+    position:absolute;
+    top:10px;
+    left:10px;
+    font-size:1.8rem;
+    font-weight:900; /* thicker font */
+    color:#fff;
+    z-index:2;
+    text-shadow: 0 0 15px #fff;
+  }
+
+  #content {
+    position:relative;
+    z-index:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    padding:24px;
+  }
+
+  h1,h2,h3 {
+    font-size:2.5rem;
+    color:#0ff;
+    text-shadow:0 0 15px #0ff;
+    margin-bottom:20px;
+  }
+
+  input, button {
+    font-size:18px;
+    margin:10px;
+    padding:10px;
+    border:1px solid #0ff;
+    background:rgba(17,17,17,0.85);
+    color:#0ff;
+    border-radius:10px;
+    width:min(420px,90vw);
+  }
+
   button { cursor:pointer; font-weight:700; }
-  #flag-section { margin-top:30px; width:min(520px, 92vw); }
+
+  #nav { position:absolute; top:10px; right:20px; z-index:2; }
+  #nav a { margin-left:20px; color:#fff; text-decoration:none; font-weight:bold; }
+
   #scoreboard { margin-top:20px; list-style:none; padding:0; width:min(420px, 92vw); }
   #scoreboard li { padding:6px 0; border-bottom:1px solid #0ff; transition:all 0.5s ease; }
   #scoreboard li.top { color:gold; font-weight:bold; }
   #scoreboard li.new { background:rgba(0,255,255,0.2); }
-  #nav { position:absolute; top:10px; right:20px; }
-  #nav a { margin-left:20px; text-decoration:none; font-weight:bold; color:#0ff; text-shadow:0 0 5px #0ff,0 0 10px #0ff; }
-  
-  /* Creator top-left */
-  #creator { position:absolute; top:10px; left:20px; font-size:16px; }
 </style>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -129,53 +145,69 @@ async function loadScores(newChallenge=null){
   });
 }
 
-// Starry background
-window.onload = function(){
-  const canvas = document.createElement('canvas');
-  canvas.id = 'stars';
-  document.body.appendChild(canvas);
-  const ctx = canvas.getContext('2d');
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  const stars = [];
-  for(let i=0;i<150;i++){
-    stars.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, r:Math.random()*1.5+0.5});
+// STARFIELD BACKGROUND
+const canvas = document.createElement('canvas');
+canvas.id = "starfield";
+document.body.appendChild(canvas);
+const ctx = canvas.getContext('2d');
+let width = canvas.width = window.innerWidth;
+let height = canvas.height = window.innerHeight;
+window.addEventListener('resize', ()=>{ width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; });
+
+const stars = [];
+for(let i=0;i<400;i++){
+  stars.push({x:Math.random()*width, y:Math.random()*height, r:Math.random()*2+0.5, blinkSpeed: Math.random()*0.05 + 0.02, opacity: Math.random()});
+}
+
+function animateStars(){
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,width,height);
+
+  for(let s of stars){
+    s.opacity += s.blinkSpeed * (Math.random()>0.5?1:-1);
+    if(s.opacity>1) s.opacity=1;
+    if(s.opacity<0) s.opacity=0;
+    ctx.beginPath();
+    ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,255,${s.opacity})`;
+    ctx.fill();
   }
-  function drawStars(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    stars.forEach(s=>{
-      ctx.beginPath();
-      ctx.arc(s.x,s.y,s.r,0,2*Math.PI);
-      ctx.fillStyle='#0ff';
-      ctx.fill();
-    });
-    requestAnimationFrame(drawStars);
-  }
-  drawStars();
-};
+
+  requestAnimationFrame(animateStars);
+}
+animateStars();
+
+// Flickering creator text (ghost house style)
+const creator = document.getElementById('creator');
+function flickerCreator(){
+  const state = Math.random() > 0.5 ? 1 : 0.2;
+  creator.style.opacity = state;
+  setTimeout(flickerCreator, 1500); // 1.5 sec interval for slow flicker
+}
+flickerCreator();
 </script>
 </head>
 <body>
+<div id="creator">By Cyb3rMaF1a</div>
 <div id="nav">
-  <a href="leaderboard.html" class="neon">Leaderboard</a>
-  <a href="user.html" class="neon">Profile</a>
-  <a href="#" onclick="logout()" class="neon">Logout</a>
+  <a href="leaderboard.html">Leaderboard</a>
+  <a href="user.html">Profile</a>
+  <a href="#" onclick="logout()">Logout</a>
 </div>
 
-<h1 class="neon">🔥 CTF Flag Submission</h1>
-<h3 class="neon">Welcome: <span id="nickname-display"></span></h3>
+<div id="content">
+  <h1>🔥 CTF Flag Submission</h1>
+  <h3>Welcome: <span id="nickname-display"></span></h3>
 
-<div id="flag-section" class="neon">
-  <h2 class="neon">Submit a Flag</h2>
-  <input id="challenge" placeholder="Challenge Name"><br>
-  <input id="flag" placeholder="Flag"><br>
-  <button onclick="submitFlag()">Submit</button>
+  <div id="flag-section">
+    <h2>Submit a Flag</h2>
+    <input id="challenge" placeholder="Challenge Name"><br>
+    <input id="flag" placeholder="Flag"><br>
+    <button onclick="submitFlag()">Submit</button>
+  </div>
+
+  <h2>🏆 Live Scoreboard</h2>
+  <ul id="scoreboard"></ul>
 </div>
-
-<h2 class="neon">🏆 Live Scoreboard</h2>
-<ul id="scoreboard"></ul>
-
-<!-- Creator label top-left with flicker -->
-<div id="creator" class="flicker">By Cybe3MaF1a</div>
 </body>
 </html>
