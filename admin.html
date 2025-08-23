@@ -7,7 +7,7 @@
 <style>
   body { background:#000 url('image.png') no-repeat center center fixed; background-size:cover; color:#0ff; font-family:"Courier New", monospace; display:flex; flex-direction:column; align-items:center; padding:30px; }
   h1,h2 { color:#f0f; }
-  input, button, select { font-size:16px; margin:6px; padding:10px; border:1px solid #0ff; background:#111; color:#0ff; border-radius:10px; }
+  input, button { font-size:16px; margin:6px; padding:10px; border:1px solid #0ff; background:#111; color:#0ff; border-radius:10px; }
   button { cursor:pointer; font-weight:700; }
   #nav { position:absolute; top:10px; right:20px; }
   #nav a { margin-left:20px; color:#f0f; text-decoration:none; font-weight:bold; }
@@ -57,15 +57,17 @@ window.addChallenge = async function() {
   const name = document.getElementById('challengeName').value.trim();
   const flagPlain = document.getElementById('challengeFlag').value.trim();
   const points = parseInt(document.getElementById('challengePoints').value.trim());
+  const category = document.getElementById('challengeCategory').value.trim();
   if(!name || !flagPlain || isNaN(points)){ alert("All fields are required!"); return; }
 
   try {
     const flagHash = await sha256(flagPlain);
-    await addDoc(collection(db,"challenges"), { name, flagHash, points });
+    await addDoc(collection(db,"challenges"), { name, flagHash, points, category });
     alert("✅ Challenge added!");
     document.getElementById('challengeName').value = "";
     document.getElementById('challengeFlag').value = "";
     document.getElementById('challengePoints').value = "";
+    document.getElementById('challengeCategory').value = "";
     loadChallenges();
   } catch(e){ alert("Error: "+e.message); }
 };
@@ -84,6 +86,7 @@ async function loadChallenges() {
         <div class="muted">Stored: SHA-256 hash only</div>
       </td>
       <td><input value="${data.points || 0}" type="number" data-id="${docSnap.id}" class="points"></td>
+      <td><input value="${data.category || ''}" placeholder="Category" data-id="${docSnap.id}" class="category"></td>
       <td>
         <button onclick="updateChallenge('${docSnap.id}')">Update</button>
         <button onclick="deleteChallenge('${docSnap.id}')">Delete</button>
@@ -97,8 +100,9 @@ window.updateChallenge = async function(id){
   const name = document.querySelector(`.name[data-id="${id}"]`).value.trim();
   const flagNew = document.querySelector(`.flag[data-id="${id}"]`).value.trim();
   const points = parseInt(document.querySelector(`.points[data-id="${id}"]`).value.trim());
+  const category = document.querySelector(`.category[data-id="${id}"]`).value.trim();
   if(!name || isNaN(points)){ alert("Name and points required"); return; }
-  const patch = { name, points };
+  const patch = { name, points, category };
   if(flagNew) { patch.flagHash = await sha256(flagNew); }
   try { await updateDoc(doc(db,"challenges",id), patch); alert("✅ Updated!"); loadChallenges(); }
   catch(e){ alert("Error: "+e.message); }
@@ -109,59 +113,12 @@ window.deleteChallenge = async function(id){
     try { await deleteDoc(doc(db,"challenges",id)); alert("✅ Deleted!"); loadChallenges(); }
     catch(e){ alert("Error: "+e.message); }
   }
-}
+};
 
-// ----------------- USER ANALYTICS -----------------
-window.loadUsers = async function(){
-  const sel = document.getElementById('usersSelect');
-  sel.innerHTML = '<option value="">Select user</option>';
-  
-  const snap = await getDocs(collection(db,"scores"));
-  const usersMap = {};
-  snap.forEach(docSnap=>{
-    const d = docSnap.data();
-    if(d.uid && !(d.uid in usersMap)){
-      usersMap[d.uid] = d.nickname || d.uid;
-    }
-  });
-
-  for(const [uid,nickname] of Object.entries(usersMap)){
-    const opt = document.createElement('option');
-    opt.value = uid;
-    opt.textContent = nickname + ' (' + uid + ')';
-    sel.appendChild(opt);
-  }
-}
-
-window.showUserStats = async function(){
-  const uid = document.getElementById('usersSelect').value;
-  if(!uid) return alert("Select a user");
-
-  const snap = await getDocs(query(collection(db,"scores"), where("uid","==",uid)));
-  let html = `<h3>Completed Challenges</h3>`;
-  if(snap.empty){
-    html += `<p>No completed challenges yet.</p>`;
-  } else {
-    html += `<table><tr><th>Challenge</th><th>Points</th><th>Timestamp</th></tr>`;
-    snap.forEach(docSnap=>{
-      const d = docSnap.data();
-      html += `<tr>
-        <td>${d.challenge}</td>
-        <td>${d.points}</td>
-        <td>${d.timestamp?.toDate?.()?.toLocaleString() || ''}</td>
-      </tr>`;
-    });
-    html += `</table>`;
-  }
-  document.getElementById('userStats').innerHTML = html;
-}
-
-// ----------------- INIT -----------------
 onAuthStateChanged(auth, async (user) => {
   const ok = await ensureAdmin(user);
   if(!ok){ alert("❌ Unauthorized!"); window.location.href = "admin-login.html"; return; }
   loadChallenges();
-  loadUsers();
 });
 </script>
 </head>
@@ -175,21 +132,16 @@ onAuthStateChanged(auth, async (user) => {
 <input id="challengeName" placeholder="Challenge Name">
 <input id="challengeFlag" placeholder="Flag (plaintext – will be hashed)">
 <input id="challengePoints" type="number" placeholder="Points">
+<input id="challengeCategory" placeholder="Category">
 <button onclick="addChallenge()">Add</button>
 
 <h2>All Challenges</h2>
 <table>
   <thead>
-    <tr><th>Name</th><th>Flag</th><th>Points</th><th>Actions</th></tr>
+    <tr><th>Name</th><th>Flag</th><th>Points</th><th>Category</th><th>Actions</th></tr>
   </thead>
   <tbody id="challengeList"></tbody>
 </table>
-
-<h2>User Analytics</h2>
-<select id="usersSelect" onchange="showUserStats()">
-  <option value="">Select user</option>
-</select>
-<div id="userStats"></div>
 
 </body>
 </html>
