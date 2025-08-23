@@ -34,26 +34,56 @@ a { color:#f0f; margin-top:10px; text-decoration:none; }
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
-const firebaseConfig={apiKey:"AIzaSyCkblbbA7iZmiGr617-KZB8Yd3H3a2Aq4M",authDomain:"ctfscoreboard-3af1b.firebaseapp.com",projectId:"ctfscoreboard-3af1b"};
-const app=initializeApp(firebaseConfig);
-const auth = getAuth(app);
+// SB1 Firebase config
+const firebaseConfig1 = {
+  apiKey:"AIzaSyCkblbbA7iZmiGr617-KZB8Yd3H3a2Aq4M",
+  authDomain:"ctfscoreboard-3af1b.firebaseapp.com",
+  projectId:"ctfscoreboard-3af1b"
+};
+const app1 = initializeApp(firebaseConfig1, "SB1");
+const auth1 = getAuth(app1);
 
-onAuthStateChanged(auth, (user) => {
-  if (user && user.email && user.email.endsWith("@player.local")) {
-    window.location.href="index.html";
+// SB2 Firebase config
+const firebaseConfig2 = {
+  apiKey:"AIzaSyBsxWCAiMAvznvav9F8OO16I_lCcCfbJG8",
+  authDomain:"ctf-scoreboard2.firebaseapp.com",
+  projectId:"ctf-scoreboard2"
+};
+const app2 = initializeApp(firebaseConfig2, "SB2");
+const auth2 = getAuth(app2);
+
+// Redirect if already logged in on any board
+onAuthStateChanged(auth1, (user)=>{
+  if(user && user.email && user.email.endsWith("@player.local")){
+    window.location.href = "index.html";
+  }
+});
+onAuthStateChanged(auth2, (user)=>{
+  if(user && user.email && user.email.endsWith("@player.local")){
+    window.location.href = "index.html";
   }
 });
 
 window.loginUser = async function(){
-  const username=document.getElementById('username').value.trim();
-  const password=document.getElementById('password').value.trim();
-  if(!username||!password){ alert("All fields required"); return;}
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
+  if(!username || !password){ alert("All fields required"); return;}
   const email = `${username}@player.local`;
+
   try {
-    await signInWithEmailAndPassword(auth, email, password);
-    window.location.href="index.html";
-  } catch(e){
-    alert("❌ Invalid credentials");
+    // Try SB1
+    await signInWithEmailAndPassword(auth1, email, password);
+    window.location.href = "index.html";
+    return;
+  } catch(e1){
+    try {
+      // Try SB2
+      await signInWithEmailAndPassword(auth2, email, password);
+      window.location.href = "index.html";
+      return;
+    } catch(e2){
+      alert("❌ Invalid credentials");
+    }
   }
 }
 </script>
