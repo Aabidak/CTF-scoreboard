@@ -6,20 +6,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   body { background:#000 url('image.png') no-repeat center center fixed; background-size:cover; color:#0ff; font-family:"Courier New", monospace; display:flex; flex-direction:column; align-items:center; padding:30px; }
-  h1,h2 { color:#f0f; }
-  input, button { font-size:16px; margin:6px; padding:10px; border:1px solid #0ff; background:#111; color:#0ff; border-radius:10px; }
+  h1,h2,h3 { color:#f0f; }
+  input, button, select { font-size:16px; margin:6px; padding:10px; border:1px solid #0ff; background:#111; color:#0ff; border-radius:10px; }
   button { cursor:pointer; font-weight:700; }
   #nav { position:absolute; top:10px; right:20px; }
   #nav a { margin-left:20px; color:#f0f; text-decoration:none; font-weight:bold; }
-  table { margin-top:20px; border-collapse: collapse; width: min(900px, 95vw); background: rgba(0,0,0,0.6); border-radius:14px; overflow:hidden; }
+  table { margin-top:20px; border-collapse: collapse; width: min(950px, 95vw); background: rgba(0,0,0,0.6); border-radius:14px; overflow:hidden; }
   th, td { border:1px solid #0ff; padding:10px; text-align:center; }
   th { background:#111; }
   td button { padding:6px 10px; border-radius:8px; }
   .muted { color:#7ff; font-size:12px; }
+  #usersSelect { width:300px; }
 </style>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -40,7 +41,6 @@ async function sha256(text){
 // Admin session guard
 async function ensureAdmin(user){
   if(!user || !user.email || !user.email.endsWith("@admin.local")) return false;
-  // Optional: double check admins collection contains this uid or email (works even with open rules)
   try {
     const q = query(collection(db, "admins"), where("email","==",user.email));
     const snap = await getDocs(q);
@@ -54,6 +54,7 @@ window.logoutAdmin = async function() {
   window.location.href="admin-login.html";
 };
 
+// ---------- Challenge CRUD ----------
 window.addChallenge = async function() {
   const name = document.getElementById('challengeName').value.trim();
   const flagPlain = document.getElementById('challengeFlag').value.trim();
@@ -110,12 +111,46 @@ window.deleteChallenge = async function(id){
     try { await deleteDoc(doc(db,"challenges",id)); alert("✅ Deleted!"); loadChallenges(); }
     catch(e){ alert("Error: "+e.message); }
   }
-};
+}
 
+// ---------- User Analytics ----------
+window.loadUsers = async function(){
+  const sel = document.getElementById('usersSelect');
+  sel.innerHTML = '<option value="">Select user</option>';
+  const snap = await getDocs(collection(db,"users"));
+  snap.forEach(docSnap=>{
+    const data = docSnap.data();
+    const opt = document.createElement('option');
+    opt.value = docSnap.id;
+    opt.textContent = data.displayName || data.email;
+    sel.appendChild(opt);
+  });
+}
+
+window.showUserStats = async function(){
+  const uid = document.getElementById('usersSelect').value;
+  if(!uid) return alert("Select a user");
+  
+  const userScoreSnap = await getDocs(query(collection(db,"scores"), where("uid","==",uid)));
+  let html = `<h3>Completed Challenges</h3>`;
+  if(userScoreSnap.empty) html += `<p>No completed challenges yet.</p>`;
+  else {
+    html += `<table><tr><th>Challenge</th><th>Points</th><th>Timestamp</th></tr>`;
+    userScoreSnap.forEach(snap=>{
+      const d = snap.data();
+      html += `<tr><td>${d.challenge}</td><td>${d.points}</td><td>${d.timestamp?.toDate?.()?.toLocaleString() || ''}</td></tr>`;
+    });
+    html += `</table>`;
+  }
+  document.getElementById('userStats').innerHTML = html;
+}
+
+// ---------- Initialize ----------
 onAuthStateChanged(auth, async (user) => {
   const ok = await ensureAdmin(user);
   if(!ok){ alert("❌ Unauthorized!"); window.location.href = "admin-login.html"; return; }
   loadChallenges();
+  loadUsers();
 });
 </script>
 </head>
@@ -124,6 +159,7 @@ onAuthStateChanged(auth, async (user) => {
   <a href="#" onclick="logoutAdmin()">Logout</a>
 </div>
 <h1>🛠 Admin Panel</h1>
+
 <h2>Add Challenge</h2>
 <input id="challengeName" placeholder="Challenge Name">
 <input id="challengeFlag" placeholder="Flag (plaintext – will be hashed)">
@@ -137,5 +173,10 @@ onAuthStateChanged(auth, async (user) => {
   </thead>
   <tbody id="challengeList"></tbody>
 </table>
+
+<h2>User Analytics</h2>
+<select id="usersSelect" onchange="showUserStats()"></select>
+<div id="userStats"></div>
+
 </body>
 </html>
