@@ -8,7 +8,7 @@
   html, body {
     margin:0; padding:0; height:100%;
     font-family:"Courier New", monospace;
-    overflow:hidden;
+    /* overflow:hidden; */  /* removed so scrolling works */
     background:#000;
     color:#0ff;
     text-align:center;
@@ -39,7 +39,14 @@
     padding:24px;
   }
 
-  h1,h2,h3 {
+  h1 {
+    font-size:3.2rem; /* bigger heading */
+    color:#0ff;
+    text-shadow:0 0 15px #0ff;
+    margin-bottom:20px;
+  }
+
+  h2,h3 {
     font-size:2.5rem;
     color:#0ff;
     text-shadow:0 0 15px #0ff;
