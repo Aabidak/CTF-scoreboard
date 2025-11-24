@@ -29,6 +29,34 @@ h1,h2 { font-size:3rem; color:#f0f; text-shadow:0 0 15px #f0f; margin-bottom:20p
 input, button { font-size:18px; margin:10px; padding:10px; border:1px solid #0ff; background:rgba(17,17,17,0.85); color:#0ff; border-radius:10px; width:min(420px,90vw); }
 button { cursor:pointer; font-weight:700; }
 a { color:#f0f; margin-top:10px; text-decoration:none; }
+  /* 🔥 NEON GLOW + HOVER EFFECTS 🔥 */
+
+/* Glow on input hover + focus */
+input:hover, input:focus {
+  box-shadow: 0 0 15px #0ff, 0 0 30px #0ff inset;
+  border-color:#0ff;
+  outline:none;
+  transform:scale(1.03);
+  transition:all 0.25s ease;
+}
+
+/* Button hover neon glow */
+button:hover {
+  background:rgba(0,255,255,0.15);
+  box-shadow:0 0 20px #0ff, 0 0 40px #0ff inset;
+  transform:scale(1.05);
+  letter-spacing:1px;
+  transition:all 0.25s ease;
+}
+
+/* Links glow on hover */
+a:hover {
+  color:#0ff;
+  text-shadow:0 0 10px #0ff, 0 0 20px #0ff;
+  transform:scale(1.1);
+  transition:all 0.25s ease;
+}
+
 </style>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
